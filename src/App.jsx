@@ -16,7 +16,7 @@ function App() {
   const [profile, setProfile] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-
+  
   useEffect(() => {
     const root = document.documentElement
 
