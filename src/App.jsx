@@ -49,6 +49,7 @@ function App() {
         return
       }
 
+      console.log("Loaded profile:", data)
       setProfile(data)
     }
 

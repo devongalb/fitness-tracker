@@ -52,7 +52,6 @@ function Auth() {
                 <div className="form-section">
                     <h3 className="form-section-title">Email Login</h3>
 
-                    <label className="form-label">Email Address</label>
                     <input
                         className="form-input"
                         type="email"
