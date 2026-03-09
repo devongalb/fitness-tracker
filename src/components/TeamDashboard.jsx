@@ -76,42 +76,46 @@ function TeamDashboard({ profile }) {
     const stats = useMemo(() => {
         const totalMembers = profiles.length
 
-        const latestDailyByUser = new Map()
-        dailyLogs.forEach((log) => {
-            if (!latestDailyByUser.has(log.user_id)) {
-                latestDailyByUser.set(log.user_id, log)
-            }
-        })
+        const today = new Date()
+        const todayKey = today.toLocaleDateString('en-CA')
 
-        const latestWeeklyByUser = new Map()
-        weeklyLogs.forEach((log) => {
-            if (!latestWeeklyByUser.has(log.user_id)) {
-                latestWeeklyByUser.set(log.user_id, log)
-            }
-        })
+        const weekStart = new Date(today)
+        const dayOfWeek = weekStart.getDay()
+        const daysSinceMonday = (dayOfWeek + 6) % 7
+        weekStart.setDate(weekStart.getDate() - daysSinceMonday)
+        const weekStartKey = weekStart.toLocaleDateString('en-CA')
 
-        const latestMonthlyByUser = new Map()
-        monthlyLogs.forEach((log) => {
-            if (!latestMonthlyByUser.has(log.user_id)) {
-                latestMonthlyByUser.set(log.user_id, log)
-            }
-        })
+        const currentMonthName = today.toLocaleString('en-US', { month: 'long' })
 
-        const missingDaily = profiles.filter((member) => !latestDailyByUser.has(member.id))
-        const missingWeekly = profiles.filter((member) => !latestWeeklyByUser.has(member.id))
-        const missingMonthly = profiles.filter((member) => !latestMonthlyByUser.has(member.id))
+        const submittedDailyToday = new Set(
+            dailyLogs
+                .filter((log) => log.date === todayKey)
+                .map((log) => log.user_id)
+        )
 
-        const average = (values) => {
-            const valid = values.filter((v) => typeof v === 'number' && !Number.isNaN(v))
-            if (valid.length === 0) return null
-            return valid.reduce((sum, value) => sum + value, 0) / valid.length
-        }
+        const submittedWeeklyThisWeek = new Set(
+            weeklyLogs
+                .filter((log) => log.week_start === weekStartKey)
+                .map((log) => log.user_id)
+        )
 
-        const avgCardio = average(dailyLogs.map((log) => log.cardio_duration))
-        const avgWeight = average(monthlyLogs.map((log) => log.weight))
-        const avgBench = average(monthlyLogs.map((log) => log.bench))
-        const avgSquat = average(monthlyLogs.map((log) => log.squat))
-        const avgDeadlift = average(monthlyLogs.map((log) => log.deadlift))
+        const submittedMonthlyThisMonth = new Set(
+            monthlyLogs
+                .filter((log) => log.month === currentMonthName)
+                .map((log) => log.user_id)
+        )
+
+        const missingDaily = profiles.filter((member) => !submittedDailyToday.has(member.id))
+        const missingWeekly = profiles.filter((member) => !submittedWeeklyThisWeek.has(member.id))
+        const missingMonthly = profiles.filter((member) => !submittedMonthlyThisMonth.has(member.id))
+
+        const memberStatuses = profiles.map((member) => ({
+            id: member.id,
+            name: member.full_name || member.email || 'Unknown member',
+            dailySubmitted: submittedDailyToday.has(member.id),
+            weeklySubmitted: submittedWeeklyThisWeek.has(member.id),
+            monthlySubmitted: submittedMonthlyThisMonth.has(member.id)
+        }))
 
         const recentActivity = [
             ...dailyLogs.map((log) => ({
@@ -141,11 +145,7 @@ function TeamDashboard({ profile }) {
             missingDaily,
             missingWeekly,
             missingMonthly,
-            avgCardio,
-            avgWeight,
-            avgBench,
-            avgSquat,
-            avgDeadlift,
+            memberStatuses,
             recentActivity
         }
     }, [profiles, dailyLogs, weeklyLogs, monthlyLogs])
@@ -254,31 +254,36 @@ function TeamDashboard({ profile }) {
             </div>
 
             <div className="history-section">
-                <h3 className="history-title">Team Averages</h3>
-                <div className="history-card">
-                    <div className="history-grid">
-                        <p className="history-field">
-                            <strong>Average Cardio Duration:</strong>{' '}
-                            {stats.avgCardio ? `${stats.avgCardio.toFixed(1)} min` : '—'}
-                        </p>
-                        <p className="history-field">
-                            <strong>Average Weight:</strong>{' '}
-                            {stats.avgWeight ? stats.avgWeight.toFixed(1) : '—'}
-                        </p>
-                        <p className="history-field">
-                            <strong>Average Bench:</strong>{' '}
-                            {stats.avgBench ? stats.avgBench.toFixed(1) : '—'}
-                        </p>
-                        <p className="history-field">
-                            <strong>Average Squat:</strong>{' '}
-                            {stats.avgSquat ? stats.avgSquat.toFixed(1) : '—'}
-                        </p>
-                        <p className="history-field">
-                            <strong>Average Deadlift:</strong>{' '}
-                            {stats.avgDeadlift ? stats.avgDeadlift.toFixed(1) : '—'}
-                        </p>
-                    </div>
-                </div>
+                <h3 className="history-title">Submission Status</h3>
+                <p className="history-section-subtitle">
+                    Quickly review which members have submitted their daily, weekly, and monthly logs for the current period.
+                </p>
+
+                {stats.memberStatuses.length === 0 ? (
+                    <p className="history-empty">No team members found.</p>
+                ) : (
+                    stats.memberStatuses.map((member) => (
+                        <div key={`status-${member.id}`} className="history-card">
+                            <div className="history-card-header">
+                                <div>
+                                    <h4 className="history-card-title">{member.name}</h4>
+                                </div>
+                            </div>
+
+                            <div className="history-grid">
+                                <p className="history-field">
+                                    <strong>Daily:</strong> {member.dailySubmitted ? '✓ Submitted' : '✗ Missing'}
+                                </p>
+                                <p className="history-field">
+                                    <strong>Weekly:</strong> {member.weeklySubmitted ? '✓ Submitted' : '✗ Missing'}
+                                </p>
+                                <p className="history-field">
+                                    <strong>Monthly:</strong> {member.monthlySubmitted ? '✓ Submitted' : '✗ Missing'}
+                                </p>
+                            </div>
+                        </div>
+                    ))
+                )}
             </div>
 
             <div className="history-section">
@@ -299,11 +304,14 @@ function TeamDashboard({ profile }) {
 
             <div className="history-section">
                 <h3 className="history-title">Members Missing Logs</h3>
+                <p className="history-section-subtitle">
+                    Shows members who have not submitted a daily log today, a weekly log for the current week, or a monthly log for the current month.
+                </p>
 
                 <div className="history-card">
                     <div className="history-grid">
                         <div>
-                            <p><strong>Missing Daily</strong></p>
+                            <p><strong>Missing Daily Today</strong></p>
                             {stats.missingDaily.length === 0 ? (
                                 <p>None</p>
                             ) : (
@@ -314,7 +322,7 @@ function TeamDashboard({ profile }) {
                         </div>
 
                         <div>
-                            <p><strong>Missing Weekly</strong></p>
+                            <p><strong>Missing Weekly This Week</strong></p>
                             {stats.missingWeekly.length === 0 ? (
                                 <p>None</p>
                             ) : (
@@ -325,7 +333,7 @@ function TeamDashboard({ profile }) {
                         </div>
 
                         <div>
-                            <p><strong>Missing Monthly</strong></p>
+                            <p><strong>Missing Monthly This Month</strong></p>
                             {stats.missingMonthly.length === 0 ? (
                                 <p>None</p>
                             ) : (
