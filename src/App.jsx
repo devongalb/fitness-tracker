@@ -32,7 +32,7 @@ export default function Profile({ profile, onProfileUpdate }) {
       })
     }
   }, [profile])
-
+  
   useEffect(() => {
     const loadProfileData = async () => {
       if (!profile?.id) {
