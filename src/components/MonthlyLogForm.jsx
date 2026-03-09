@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { supabase } from '../lib/supabase'
 
 function MonthlyLogForm() {
     const [monthlyForm, setMonthlyForm] = useState({
@@ -19,19 +20,30 @@ function MonthlyLogForm() {
         }))
     }
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault()
 
+        const { data: { user } } = await supabase.auth.getUser()
+
         const newLog = {
-            ...monthlyForm,
-            createdAt: new Date().toISOString()
+            user_id: user.id,
+            month: monthlyForm.month,
+            weight: monthlyForm.weight ? Number(monthlyForm.weight) : null,
+            waist: monthlyForm.waist ? Number(monthlyForm.waist) : null,
+            bench: monthlyForm.bench ? Number(monthlyForm.bench) : null,
+            squat: monthlyForm.squat ? Number(monthlyForm.squat) : null,
+            deadlift: monthlyForm.deadlift ? Number(monthlyForm.deadlift) : null,
+            notes: monthlyForm.notes
         }
 
+        const { error } = await supabase.from('monthly_logs').insert([newLog])
 
-        const existingLogs = JSON.parse(localStorage.getItem('monthlyLogs')) || []
-        const updatedLogs = [newLog, ...existingLogs]
+        if (error) {
+            console.error('Error saving monthly log:', error)
+            alert('Failed to save monthly progress')
+            return
+        }
 
-        localStorage.setItem('monthlyLogs', JSON.stringify(updatedLogs))
         alert('Monthly progress saved')
 
         setMonthlyForm({

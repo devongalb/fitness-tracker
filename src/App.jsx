@@ -4,10 +4,13 @@ import DailyLogForm from './components/DailyLogForm'
 import WeeklyLogForm from './components/WeeklyLogForm'
 import MonthlyLogForm from './components/MonthlyLogForm'
 import History from './components/History'
+import Auth from './components/Auth'
+import { supabase } from './lib/supabase'
 
 function App() {
   const [page, setPage] = useState('home')
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'system')
+  const [session, setSession] = useState(null)
 
   useEffect(() => {
     const root = document.documentElement
@@ -22,6 +25,24 @@ function App() {
 
     localStorage.setItem('theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+    })
+
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  if (!session) {
+    return <Auth />
+  }
 
   const renderPage = () => {
     if (page === 'daily') {
@@ -109,6 +130,15 @@ function App() {
           className={page === 'history' ? 'nav-button nav-button-active' : 'nav-button'}
         >
           History
+        </button>
+
+        <button
+          onClick={async () => {
+            await supabase.auth.signOut()
+          }}
+          className="nav-button"
+        >
+          Sign Out
         </button>
 
         <select

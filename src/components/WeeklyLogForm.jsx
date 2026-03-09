@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { supabase } from '../lib/supabase'
 
 function WeeklyLogForm() {
     const [weeklyForm, setWeeklyForm] = useState({
@@ -19,19 +20,31 @@ function WeeklyLogForm() {
             [name]: value
         }))
     }
-    const handleSubmit = (e) => {
+
+    const handleSubmit = async (e) => {
         e.preventDefault()
 
+        const { data: { user } } = await supabase.auth.getUser()
+
         const newLog = {
-            ...weeklyForm,
-            createdAt: new Date().toISOString()
+            user_id: user.id,
+            week_start: weeklyForm.weekStart || null,
+            monday: weeklyForm.monday,
+            tuesday: weeklyForm.tuesday,
+            wednesday: weeklyForm.wednesday,
+            thursday: weeklyForm.thursday,
+            friday: weeklyForm.friday,
+            saturday: weeklyForm.saturday,
+            notes: weeklyForm.notes
         }
 
+        const { error } = await supabase.from('weekly_logs').insert([newLog])
 
-        const existingLogs = JSON.parse(localStorage.getItem('weeklyLogs')) || []
-        const updatedLogs = [newLog, ...existingLogs]
-
-        localStorage.setItem('weeklyLogs', JSON.stringify(updatedLogs))
+        if (error) {
+            console.error('Error saving weekly log:', error)
+            alert('Failed to save weekly log')
+            return
+        }
 
         alert('Weekly log saved')
 

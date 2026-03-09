@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { supabase } from '../lib/supabase'
 
 function DailyLogForm() {
     const [dailyForm, setDailyForm] = useState({
@@ -23,19 +24,33 @@ function DailyLogForm() {
         }))
     }
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault()
 
+        const { data: { user } } = await supabase.auth.getUser()
+
         const newLog = {
-            ...dailyForm,
-            createdAt: new Date().toISOString()
+            user_id: user.id,
+            date: dailyForm.date,
+            workout_focus: dailyForm.workoutFocus,
+            exercise1: dailyForm.exercise1,
+            exercise1_weight: Number(dailyForm.exercise1Weight),
+            exercise1_reps: Number(dailyForm.exercise1Reps),
+            exercise2: dailyForm.exercise2,
+            exercise2_weight: Number(dailyForm.exercise2Weight),
+            exercise2_reps: Number(dailyForm.exercise2Reps),
+            cardio_type: dailyForm.cardioType,
+            cardio_duration: Number(dailyForm.cardioDuration),
+            notes: dailyForm.notes
         }
 
+        await supabase.from('daily_logs').insert([newLog])
 
-        const existingLogs = JSON.parse(localStorage.getItem('dailyLogs')) || []
-        const updatedLogs = [newLog, ...existingLogs]
-        
-        localStorage.setItem('dailyLogs', JSON.stringify(updatedLogs))
+        if (error) {
+            console.error('Error saving daily log:', error)
+            alert('Failed to save workout')
+            return
+        }
 
         alert('Workout saved')
 
