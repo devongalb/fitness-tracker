@@ -89,7 +89,14 @@ function App() {
     if (page === 'weekly') return <WeeklyLogForm />
     if (page === 'monthly') return <MonthlyLogForm />
     if (page === 'history') return <History />
-    if (page === 'profile') return <Profile profile={profile} />
+    if (page === 'profile') {
+      return (
+        <Profile
+          profile={profile}
+          onProfileUpdate={(updatedProfile) => setProfile(updatedProfile)}
+        />
+      )
+    }    
     if (page === 'team') return <TeamDashboard profile={profile} />
 
     return (

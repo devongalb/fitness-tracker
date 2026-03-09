@@ -1,19 +1,19 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-function Profile({ profile }) {
+function Profile({ profile, onProfileUpdate }) {
     const [dailyLogs, setDailyLogs] = useState([])
     const [weeklyLogs, setWeeklyLogs] = useState([])
     const [monthlyLogs, setMonthlyLogs] = useState([])
     const [loading, setLoading] = useState(true)
     const [fullName, setFullName] = useState('')
-    const [teamName, setTeamName] = useState('')
+    const [teamName, setTeamName] = useState('452 AMW/CP')    
     const [savingProfile, setSavingProfile] = useState(false)
     const [statusMessage, setStatusMessage] = useState('')
 
     useEffect(() => {
         setFullName(profile?.full_name || '')
-        setTeamName(profile?.team_name || '')
+        setTeamName(profile?.team_name || '452 AMW/CP')
     }, [profile])
 
     useEffect(() => {
@@ -88,6 +88,13 @@ function Profile({ profile }) {
         }
 
         setStatusMessage('Profile updated successfully.')
+        if (onProfileUpdate) {
+            onProfileUpdate({
+                ...profile,
+                full_name: fullName,
+                team_name: teamName || '452 AMW/CP'
+            })
+        }
         setSavingProfile(false)
     }
 
@@ -122,23 +129,6 @@ function Profile({ profile }) {
                         className="form-input"
                         type="text"
                         value={profile?.email || ''}
-                        readOnly
-                    />
-
-                    <label className="form-label">Team Name</label>
-                    <input
-                        className="form-input"
-                        type="text"
-                        value={teamName}
-                        onChange={(e) => setTeamName(e.target.value)}
-                        placeholder="Enter your team or group"
-                    />
-
-                    <label className="form-label">Role</label>
-                    <input
-                        className="form-input"
-                        type="text"
-                        value={profile?.role || 'member'}
                         readOnly
                     />
 
