@@ -54,6 +54,7 @@ body {
 
 .app-shell {
   width: 100%;
+  position: relative;
 }
 
 .page-container {
@@ -70,6 +71,10 @@ body {
   margin-bottom: 20px;
   border-bottom: 1px solid var(--border);
   width: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--bg);
 }
 
 .nav-button {
@@ -114,7 +119,7 @@ body {
   flex-wrap: wrap;
   gap: 16px;
   margin-top: 24px;
-  align-items: stretch;
+  align-items: flex-start;
 }
 
 .quick-action-card {
@@ -123,7 +128,7 @@ body {
   border-radius: 12px;
   padding: 18px;
   min-width: 220px;
-  flex: 1 1 240px;
+  flex: 0 1 280px;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   box-sizing: border-box;
@@ -288,6 +293,7 @@ select.form-input {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 14px 20px;
   margin-top: 14px;
+  align-items: start;
 }
 
 .history-field {
@@ -344,6 +350,90 @@ select.form-input {
   cursor: pointer;
 }
 
+.mobile-topbar,
+.mobile-menu-panel,
+.mobile-bottom-nav {
+  display: none;
+}
+
+.app-main {
+  padding-bottom: 0;
+}
+
+.desktop-nav {
+  display: flex;
+}
+
+.mobile-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--bg);
+  padding: 10px 0 14px;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mobile-topbar-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.mobile-menu-button {
+  padding: 10px 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  color: var(--text-main);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mobile-menu-panel {
+  position: sticky;
+  top: 56px;
+  z-index: 29;
+  background: var(--bg);
+  padding: 12px 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mobile-bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  background: var(--card-bg);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-around;
+  gap: 6px;
+  padding: 10px 8px calc(10px + env(safe-area-inset-bottom));
+}
+
+.bottom-nav-button {
+  flex: 1 1 0;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.bottom-nav-button-active {
+  background: var(--card-alt);
+  color: var(--text-main);
+}
+
 .form-section {
   padding: 20px;
   border: 1px solid var(--border);
@@ -397,6 +487,18 @@ select.form-input {
   .history-grid {
     grid-template-columns: 1fr;
   }
+
+  .desktop-nav {
+    display: none;
+  }
+
+  .mobile-topbar {
+    display: flex;
+  }
+
+  .app-main {
+    padding-bottom: 88px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -415,7 +517,8 @@ select.form-input {
   }
 
   .nav-button,
-  .theme-select {
+  .theme-select,
+  .mobile-menu-button {
     width: 100%;
     box-sizing: border-box;
     padding: 12px 14px;
@@ -452,6 +555,15 @@ select.form-input {
 
   .quick-action-card {
     padding: 16px;
+  }
+
+  .quick-action-card:nth-child(odd) {
+    max-width: 100%;
+  }
+
+  .quick-action-card:nth-child(even) {
+    max-width: 92%;
+    margin-left: auto;
   }
 
   .form-card {
@@ -491,6 +603,14 @@ select.form-input {
   .history-grid {
     grid-template-columns: 1fr;
     gap: 10px;
+  }
+
+  .mobile-menu-panel {
+    display: flex;
+  }
+
+  .mobile-bottom-nav {
+    display: flex;
   }
 
   .delete-button,

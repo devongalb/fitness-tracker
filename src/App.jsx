@@ -15,6 +15,7 @@ function App() {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     const root = document.documentElement
@@ -140,7 +141,118 @@ function App() {
 
   return (
     <div className="app-shell">
-      <div className="top-nav">
+      <div className="mobile-topbar">
+        <div className="mobile-topbar-title">Fitness Tracker</div>
+        <button
+          type="button"
+          className="mobile-menu-button"
+          onClick={() => setMobileMenuOpen((prev) => !prev)}
+          aria-label="Open navigation menu"
+        >
+          Menu
+        </button>
+      </div>
+
+      {mobileMenuOpen && (
+        <div className="mobile-menu-panel">
+          <button
+            onClick={() => {
+              setPage('home')
+              setMobileMenuOpen(false)
+            }}
+            className={page === 'home' ? 'nav-button nav-button-active' : 'nav-button'}
+          >
+            Home
+          </button>
+
+          <button
+            onClick={() => {
+              setPage('daily')
+              setMobileMenuOpen(false)
+            }}
+            className={page === 'daily' ? 'nav-button nav-button-active' : 'nav-button'}
+          >
+            Daily Log
+          </button>
+
+          <button
+            onClick={() => {
+              setPage('weekly')
+              setMobileMenuOpen(false)
+            }}
+            className={page === 'weekly' ? 'nav-button nav-button-active' : 'nav-button'}
+          >
+            Weekly Log
+          </button>
+
+          <button
+            onClick={() => {
+              setPage('monthly')
+              setMobileMenuOpen(false)
+            }}
+            className={page === 'monthly' ? 'nav-button nav-button-active' : 'nav-button'}
+          >
+            Monthly Progress
+          </button>
+
+          <button
+            onClick={() => {
+              setPage('history')
+              setMobileMenuOpen(false)
+            }}
+            className={page === 'history' ? 'nav-button nav-button-active' : 'nav-button'}
+          >
+            History
+          </button>
+
+          <button
+            onClick={() => {
+              setPage('profile')
+              setMobileMenuOpen(false)
+            }}
+            className={page === 'profile' ? 'nav-button nav-button-active' : 'nav-button'}
+          >
+            My Profile
+          </button>
+
+          {profile?.role === 'admin' && (
+            <button
+              onClick={() => {
+                setPage('team')
+                setMobileMenuOpen(false)
+              }}
+              className={page === 'team' ? 'nav-button nav-button-active' : 'nav-button'}
+            >
+              Team Dashboard
+            </button>
+          )}
+
+          <select
+            className="theme-select"
+            value={theme}
+            onChange={(e) => setTheme(e.target.value)}
+            aria-label="Theme selector"
+          >
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+
+          <button
+            onClick={async () => {
+              await supabase.auth.signOut()
+              setProfile(null)
+              setPage('home')
+              setMobileMenuOpen(false)
+            }}
+            className="nav-button"
+          >
+            Sign Out
+          </button>
+        </div>
+      )}
+
+      <div className="top-nav desktop-nav">
         <button
           onClick={() => setPage('home')}
           className={page === 'home' ? 'nav-button nav-button-active' : 'nav-button'}
@@ -197,6 +309,7 @@ function App() {
             await supabase.auth.signOut()
             setProfile(null)
             setPage('home')
+            setMobileMenuOpen(false)
           }}
           className="nav-button"
         >
@@ -215,7 +328,57 @@ function App() {
         </select>
       </div>
 
-      {renderPage()}
+      <main className="app-main">{renderPage()}</main>
+
+      <div className="mobile-bottom-nav">
+        <button
+          type="button"
+          className={page === 'home' ? 'bottom-nav-button bottom-nav-button-active' : 'bottom-nav-button'}
+          onClick={() => {
+            setPage('home')
+            setMobileMenuOpen(false)
+          }}
+        >
+          Home
+        </button>
+        <button
+          type="button"
+          className={page === 'daily' ? 'bottom-nav-button bottom-nav-button-active' : 'bottom-nav-button'}
+          onClick={() => {
+            setPage('daily')
+            setMobileMenuOpen(false)
+          }}
+        >
+          Daily
+        </button>
+        <button
+          type="button"
+          className={page === 'history' ? 'bottom-nav-button bottom-nav-button-active' : 'bottom-nav-button'}
+          onClick={() => {
+            setPage('history')
+            setMobileMenuOpen(false)
+          }}
+        >
+          History
+        </button>
+        <button
+          type="button"
+          className={page === 'profile' ? 'bottom-nav-button bottom-nav-button-active' : 'bottom-nav-button'}
+          onClick={() => {
+            setPage('profile')
+            setMobileMenuOpen(false)
+          }}
+        >
+          Profile
+        </button>
+        <button
+          type="button"
+          className={mobileMenuOpen ? 'bottom-nav-button bottom-nav-button-active' : 'bottom-nav-button'}
+          onClick={() => setMobileMenuOpen((prev) => !prev)}
+        >
+          Menu
+        </button>
+      </div>
     </div>
   )
 }
