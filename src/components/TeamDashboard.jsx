@@ -7,40 +7,71 @@ function TeamDashboard({ profile }) {
     const [weeklyLogs, setWeeklyLogs] = useState([])
     const [monthlyLogs, setMonthlyLogs] = useState([])
     const [loading, setLoading] = useState(true)
+    const [savingRoleId, setSavingRoleId] = useState(null)
+    const [statusMessage, setStatusMessage] = useState('')
 
-    useEffect(() => {
-        const loadTeamData = async () => {
-            if (profile?.role !== 'admin') {
-                setLoading(false)
-                return
-            }
-
-            const [
-                { data: profilesData, error: profilesError },
-                { data: dailyData, error: dailyError },
-                { data: weeklyData, error: weeklyError },
-                { data: monthlyData, error: monthlyError }
-            ] = await Promise.all([
-                supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-                supabase.from('daily_logs').select('*').order('created_at', { ascending: false }),
-                supabase.from('weekly_logs').select('*').order('created_at', { ascending: false }),
-                supabase.from('monthly_logs').select('*').order('created_at', { ascending: false })
-            ])
-
-            if (profilesError) console.error('Error loading profiles:', profilesError)
-            if (dailyError) console.error('Error loading daily logs:', dailyError)
-            if (weeklyError) console.error('Error loading weekly logs:', weeklyError)
-            if (monthlyError) console.error('Error loading monthly logs:', monthlyError)
-
-            setProfiles(profilesData || [])
-            setDailyLogs(dailyData || [])
-            setWeeklyLogs(weeklyData || [])
-            setMonthlyLogs(monthlyData || [])
+    const loadTeamData = async () => {
+        if (profile?.role !== 'admin') {
             setLoading(false)
+            return
         }
 
+        const [
+            { data: profilesData, error: profilesError },
+            { data: dailyData, error: dailyError },
+            { data: weeklyData, error: weeklyError },
+            { data: monthlyData, error: monthlyError }
+        ] = await Promise.all([
+            supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+            supabase.from('daily_logs').select('*').order('created_at', { ascending: false }),
+            supabase.from('weekly_logs').select('*').order('created_at', { ascending: false }),
+            supabase.from('monthly_logs').select('*').order('created_at', { ascending: false })
+        ])
+
+        if (profilesError) console.error('Error loading profiles:', profilesError)
+        if (dailyError) console.error('Error loading daily logs:', dailyError)
+        if (weeklyError) console.error('Error loading weekly logs:', weeklyError)
+        if (monthlyError) console.error('Error loading monthly logs:', monthlyError)
+
+        setProfiles(profilesData || [])
+        setDailyLogs(dailyData || [])
+        setWeeklyLogs(weeklyData || [])
+        setMonthlyLogs(monthlyData || [])
+        setLoading(false)
+    }
+
+    useEffect(() => {
         loadTeamData()
     }, [profile])
+
+    const handleRoleSelection = (id, newRole) => {
+        setProfiles((prev) =>
+            prev.map((member) =>
+                member.id === id ? { ...member, role: newRole } : member
+            )
+        )
+    }
+
+    const handleSaveRole = async (member) => {
+        setSavingRoleId(member.id)
+        setStatusMessage('')
+
+        const { error } = await supabase
+            .from('profiles')
+            .update({ role: member.role })
+            .eq('id', member.id)
+
+        if (error) {
+            console.error('Error updating role:', error)
+            setStatusMessage(`Failed to update role for ${member.full_name || member.email}.`)
+            setSavingRoleId(null)
+            return
+        }
+
+        setStatusMessage(`Updated role for ${member.full_name || member.email}.`)
+        setSavingRoleId(null)
+        await loadTeamData()
+    }
 
     const stats = useMemo(() => {
         const totalMembers = profiles.length
@@ -149,8 +180,10 @@ function TeamDashboard({ profile }) {
         <div className="page-container">
             <h2>Team Dashboard</h2>
             <p className="form-helper-text">
-                View team-wide activity, submissions, and overall progress.
+                View team-wide activity, submissions, overall progress, and manage admin access.
             </p>
+
+            {statusMessage && <p className="form-helper-text">{statusMessage}</p>}
 
             <div className="quick-actions">
                 <div className="quick-action-card">
@@ -172,6 +205,52 @@ function TeamDashboard({ profile }) {
                     <h3>Monthly Submissions</h3>
                     <p>{monthlyLogs.length}</p>
                 </div>
+            </div>
+
+            <div className="history-section">
+                <h3 className="history-title">Role Management</h3>
+                <p className="history-section-subtitle">
+                    Promote or demote members directly inside the app.
+                </p>
+
+                {profiles.length === 0 ? (
+                    <p className="history-empty">No team members found.</p>
+                ) : (
+                    profiles.map((member) => (
+                        <div key={member.id} className="history-card">
+                            <div className="history-card-header">
+                                <div>
+                                    <h4 className="history-card-title">{member.full_name || 'Unnamed member'}</h4>
+                                    <p className="history-card-meta"><strong>Email:</strong> {member.email || '—'}</p>
+                                    <p className="history-card-meta"><strong>Team:</strong> {member.team_name || '—'}</p>
+                                </div>
+                            </div>
+
+                            <div className="history-grid">
+                                <div>
+                                    <label className="form-label">Role</label>
+                                    <select
+                                        className="form-input"
+                                        value={member.role || 'member'}
+                                        onChange={(e) => handleRoleSelection(member.id, e.target.value)}
+                                    >
+                                        <option value="member">Member</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                className="form-button"
+                                onClick={() => handleSaveRole(member)}
+                                disabled={savingRoleId === member.id}
+                            >
+                                {savingRoleId === member.id ? 'Saving...' : 'Save Role'}
+                            </button>
+                        </div>
+                    ))
+                )}
             </div>
 
             <div className="history-section">
