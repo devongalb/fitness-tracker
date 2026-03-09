@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-function DailyLogForm() {
+function DailyLogForm({ profile }) {
     const [dailyForm, setDailyForm] = useState({
         date: '',
         workoutFocus: '',
@@ -27,10 +27,14 @@ function DailyLogForm() {
     const handleSubmit = async (e) => {
         e.preventDefault()
 
-        const { data: { user } } = await supabase.auth.getUser()
+        if (!profile?.id) {
+            alert('No profile found for this account.')
+            return
+        }
 
         const newLog = {
-            user_id: user.id,
+            profile_id: profile.id,
+            user_id: profile.id,
             date: dailyForm.date,
             workout_focus: dailyForm.workoutFocus,
             exercise1: dailyForm.exercise1,
@@ -44,7 +48,7 @@ function DailyLogForm() {
             notes: dailyForm.notes
         }
 
-        await supabase.from('daily_logs').insert([newLog])
+        const { error } = await supabase.from('daily_logs').insert([newLog])
 
         if (error) {
             console.error('Error saving daily log:', error)

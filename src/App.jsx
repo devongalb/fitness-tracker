@@ -1,386 +1,305 @@
 import { useEffect, useState } from 'react'
-import './App.css'
-import DailyLogForm from './components/DailyLogForm'
-import WeeklyLogForm from './components/WeeklyLogForm'
-import MonthlyLogForm from './components/MonthlyLogForm'
-import History from './components/History'
-import Auth from './components/Auth'
-import Profile from './components/Profile'
-import TeamDashboard from './components/TeamDashboard'
-import { supabase } from './lib/supabase'
+import { supabase } from '../lib/supabase'
 
-function App() {
-  const [page, setPage] = useState('home')
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'system')
-  const [session, setSession] = useState(null)
-  const [profile, setProfile] = useState(null)
-  const [authLoading, setAuthLoading] = useState(true)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+export default function Profile({ profile, onProfileUpdate }) {
+  const [dailyLogs, setDailyLogs] = useState([])
+  const [weeklyLogs, setWeeklyLogs] = useState([])
+  const [monthlyLogs, setMonthlyLogs] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [formData, setFormData] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    height: '',
+    weight: '',
+  })
+
+  const [aliases, setAliases] = useState([])
+  const [newAliasEmail, setNewAliasEmail] = useState('')
+  const [loadingAliases, setLoadingAliases] = useState(true)
+  const [savingAlias, setSavingAlias] = useState(false)
+  const [aliasMessage, setAliasMessage] = useState('')
 
   useEffect(() => {
-    const root = document.documentElement
+    if (profile) {
+      setFormData({
+        first_name: profile.first_name || '',
+        last_name: profile.last_name || '',
+        email: profile.email || '',
+        height: profile.height || '',
+        weight: profile.weight || '',
+      })
+    }
+  }, [profile])
 
-    if (theme === 'dark') {
-      root.setAttribute('data-theme', 'dark')
-    } else if (theme === 'light') {
-      root.setAttribute('data-theme', 'light')
+  useEffect(() => {
+    const loadProfileData = async () => {
+      if (!profile?.id) {
+        setDailyLogs([])
+        setWeeklyLogs([])
+        setMonthlyLogs([])
+        setAliases([])
+        setLoading(false)
+        setLoadingAliases(false)
+        return
+      }
+
+      setLoading(true)
+      setLoadingAliases(true)
+
+      const [
+        { data: dailyData },
+        { data: weeklyData },
+        { data: monthlyData },
+        { data: aliasData }
+      ] = await Promise.all([
+        supabase
+          .from('daily_logs')
+          .select('*')
+          .eq('profile_id', profile.id)
+          .order('created_at', { ascending: false })
+          .limit(3),
+        supabase
+          .from('weekly_logs')
+          .select('*')
+          .eq('profile_id', profile.id)
+          .order('created_at', { ascending: false })
+          .limit(3),
+        supabase
+          .from('monthly_logs')
+          .select('*')
+          .eq('profile_id', profile.id)
+          .order('created_at', { ascending: false })
+          .limit(3),
+        supabase
+          .from('profile_emails')
+          .select('*')
+          .eq('profile_id', profile.id)
+          .order('created_at', { ascending: true })
+      ])
+
+      setDailyLogs(dailyData || [])
+      setWeeklyLogs(weeklyData || [])
+      setMonthlyLogs(monthlyData || [])
+      setAliases(aliasData || [])
+      setLoading(false)
+      setLoadingAliases(false)
+    }
+
+    loadProfileData()
+  }, [profile])
+
+  const handleInputChange = (e) => {
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }))
+  }
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+
+    const updates = {
+      id: profile.id,
+      first_name: formData.first_name,
+      last_name: formData.last_name,
+      height: formData.height,
+      weight: formData.weight,
+      updated_at: new Date(),
+    }
+
+    const { error } = await supabase.from('profiles').upsert(updates)
+
+    if (error) {
+      alert('Failed to update profile')
     } else {
-      root.removeAttribute('data-theme')
+      onProfileUpdate({ ...profile, ...updates })
     }
 
-    localStorage.setItem('theme', theme)
-  }, [theme])
+    setSaving(false)
+  }
 
-  useEffect(() => {
-    const loadProfile = async (currentSession) => {
-      if (!currentSession?.user) {
-        setProfile(null)
-        return
-      }
+  const handleAddAlias = async (e) => {
+    e.preventDefault()
+    setAliasMessage('')
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', currentSession.user.id)
-        .single()
-
-      if (error) {
-        console.error('Error loading profile:', error)
-        setProfile(null)
-        return
-      }
-
-      console.log("Loaded profile:", data)
-      setProfile(data)
+    if (!profile?.id) {
+      setAliasMessage('No profile found for this account.')
+      return
     }
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session)
-      await loadProfile(session)
-      setAuthLoading(false)
-    })
+    const normalizedEmail = newAliasEmail.trim().toLowerCase()
 
-    const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session)
-      await loadProfile(session)
-      setAuthLoading(false)
-    })
+    if (!normalizedEmail) {
+      setAliasMessage('Enter an email address.')
+      return
+    }
 
-    return () => subscription.unsubscribe()
-  }, [])
+    if (normalizedEmail === (profile?.email || '').toLowerCase()) {
+      setAliasMessage('That email is already your primary email.')
+      return
+    }
 
-  if (authLoading) {
-    return (
-      <div className="page-container">
-        <div className="form-card">
-          <p className="form-helper-text">Loading session...</p>
-        </div>
-      </div>
-    )
-  }
+    if (aliases.some((alias) => alias.email?.toLowerCase() === normalizedEmail)) {
+      setAliasMessage('That alias already exists on your profile.')
+      return
+    }
 
-  if (!session) {
-    return <Auth />
-  }
+    setSavingAlias(true)
 
-  const renderPage = () => {
-    if (page === 'daily') return <DailyLogForm />
-    if (page === 'weekly') return <WeeklyLogForm />
-    if (page === 'monthly') return <MonthlyLogForm />
-    if (page === 'history') return <History />
-    if (page === 'profile') {
-      return (
-        <Profile
-          profile={profile}
-          onProfileUpdate={(updatedProfile) => setProfile(updatedProfile)}
-        />
-      )
-    }    
-    if (page === 'team') return <TeamDashboard profile={profile} />
+    const { error } = await supabase
+      .from('profile_emails')
+      .insert({
+        profile_id: profile.id,
+        email: normalizedEmail,
+        is_primary: false
+      })
 
-    return (
-      <div className="home-hero">
-        <h1>Fitness Tracker</h1>
-        <p>
-          Track daily workouts, weekly training, and monthly progress in one place.
-          Use the navigation above to log workouts, review your history, and monitor both personal and team progress.
-        </p>
+    if (error) {
+      console.error('Error adding alias:', error)
+      setAliasMessage('Failed to add alias email.')
+      setSavingAlias(false)
+      return
+    }
 
-        <div className="quick-actions">
-          <div className="quick-action-card" onClick={() => setPage('daily')}>
-            <h3>Daily Log</h3>
-            <p>Record exercises, cardio sessions, and workout notes.</p>
-          </div>
+    const { data: aliasData } = await supabase
+      .from('profile_emails')
+      .select('*')
+      .eq('profile_id', profile.id)
+      .order('created_at', { ascending: true })
 
-          <div className="quick-action-card" onClick={() => setPage('weekly')}>
-            <h3>Weekly Log</h3>
-            <p>Track workouts completed throughout the week.</p>
-          </div>
-
-          <div className="quick-action-card" onClick={() => setPage('monthly')}>
-            <h3>Monthly Progress</h3>
-            <p>Monitor weight, measurements, and strength progress.</p>
-          </div>
-
-          <div className="quick-action-card" onClick={() => setPage('history')}>
-            <h3>History</h3>
-            <p>Review saved workout logs and training history.</p>
-          </div>
-
-          <div className="quick-action-card" onClick={() => setPage('profile')}>
-            <h3>My Profile</h3>
-            <p>View your profile, latest logs, and progress summary.</p>
-          </div>
-
-        </div>
-      </div>
-    )
+    setAliases(aliasData || [])
+    setNewAliasEmail('')
+    setAliasMessage('Alias email added successfully.')
+    setSavingAlias(false)
   }
 
   return (
-    <div className="app-shell">
-      <div className="mobile-topbar">
-        <div className="mobile-topbar-title">Fitness Tracker</div>
-        <button
-          type="button"
-          className="mobile-menu-button"
-          onClick={() => setMobileMenuOpen((prev) => !prev)}
-          aria-label="Open navigation menu"
-        >
-          Menu
+    <div className="form-card">
+      <h2>Profile Information</h2>
+      <form onSubmit={handleSaveProfile}>
+        <label className="form-label">First Name</label>
+        <input
+          className="form-input"
+          type="text"
+          name="first_name"
+          value={formData.first_name}
+          onChange={handleInputChange}
+        />
+
+        <label className="form-label">Last Name</label>
+        <input
+          className="form-input"
+          type="text"
+          name="last_name"
+          value={formData.last_name}
+          onChange={handleInputChange}
+        />
+
+        <label className="form-label">Height (inches)</label>
+        <input
+          className="form-input"
+          type="number"
+          name="height"
+          value={formData.height}
+          onChange={handleInputChange}
+        />
+
+        <label className="form-label">Weight (lbs)</label>
+        <input
+          className="form-input"
+          type="number"
+          name="weight"
+          value={formData.weight}
+          onChange={handleInputChange}
+        />
+
+        <button className="form-button" type="submit" disabled={saving}>
+          {saving ? 'Saving...' : 'Save Profile'}
         </button>
-      </div>
+      </form>
 
-      {mobileMenuOpen && (
-        <div className="mobile-menu-panel">
-          <button
-            onClick={() => {
-              setPage('home')
-              setMobileMenuOpen(false)
-            }}
-            className={page === 'home' ? 'nav-button nav-button-active' : 'nav-button'}
-          >
-            Home
-          </button>
+                <div className="form-section">
+                    <h3 className="form-section-title">Email Aliases</h3>
+                    <p className="form-helper-text">
+                        Add additional email addresses that should sign in to this same profile.
+                    </p>
 
-          <button
-            onClick={() => {
-              setPage('daily')
-              setMobileMenuOpen(false)
-            }}
-            className={page === 'daily' ? 'nav-button nav-button-active' : 'nav-button'}
-          >
-            Daily Log
-          </button>
+                    <p><strong>Primary Email:</strong> {profile?.email || 'Not available'}</p>
 
-          <button
-            onClick={() => {
-              setPage('weekly')
-              setMobileMenuOpen(false)
-            }}
-            className={page === 'weekly' ? 'nav-button nav-button-active' : 'nav-button'}
-          >
-            Weekly Log
-          </button>
+                    {aliasMessage && <p className="form-helper-text">{aliasMessage}</p>}
 
-          <button
-            onClick={() => {
-              setPage('monthly')
-              setMobileMenuOpen(false)
-            }}
-            className={page === 'monthly' ? 'nav-button nav-button-active' : 'nav-button'}
-          >
-            Monthly Progress
-          </button>
+                    {loadingAliases ? (
+                        <p>Loading email aliases...</p>
+                    ) : aliases.length === 0 ? (
+                        <p>No additional email aliases yet.</p>
+                    ) : (
+                        aliases
+                            .filter((alias) => !alias.is_primary)
+                            .map((alias) => (
+                                <div key={alias.id} className="history-card">
+                                    <p><strong>Alias:</strong> {alias.email}</p>
+                                </div>
+                            ))
+                    )}
 
-          <button
-            onClick={() => {
-              setPage('history')
-              setMobileMenuOpen(false)
-            }}
-            className={page === 'history' ? 'nav-button nav-button-active' : 'nav-button'}
-          >
-            History
-          </button>
+                    <form onSubmit={handleAddAlias}>
+                        <label className="form-label">Add Alias Email</label>
+                        <input
+                            className="form-input"
+                            type="email"
+                            value={newAliasEmail}
+                            onChange={(e) => setNewAliasEmail(e.target.value)}
+                            placeholder="Enter another email address"
+                        />
 
-          <button
-            onClick={() => {
-              setPage('profile')
-              setMobileMenuOpen(false)
-            }}
-            className={page === 'profile' ? 'nav-button nav-button-active' : 'nav-button'}
-          >
-            My Profile
-          </button>
+                        <button className="form-button" type="submit" disabled={savingAlias}>
+                            {savingAlias ? 'Adding...' : 'Add Alias'}
+                        </button>
+                    </form>
+                </div>
 
-          {profile?.role === 'admin' && (
-            <button
-              onClick={() => {
-                setPage('team')
-                setMobileMenuOpen(false)
-              }}
-              className={page === 'team' ? 'nav-button nav-button-active' : 'nav-button'}
-            >
-              Team Dashboard
-            </button>
+      <h2>Progress Summary</h2>
+      {loading ? (
+        <p>Loading progress...</p>
+      ) : (
+        <>
+          <h3>Recent Daily Logs</h3>
+          {dailyLogs.length === 0 ? (
+            <p>No daily logs found.</p>
+          ) : (
+            dailyLogs.map((log) => (
+              <div key={log.id} className="history-card">
+                <p>{log.created_at}: {log.notes}</p>
+              </div>
+            ))
           )}
 
-          <select
-            className="theme-select"
-            value={theme}
-            onChange={(e) => setTheme(e.target.value)}
-            aria-label="Theme selector"
-          >
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
+          <h3>Recent Weekly Logs</h3>
+          {weeklyLogs.length === 0 ? (
+            <p>No weekly logs found.</p>
+          ) : (
+            weeklyLogs.map((log) => (
+              <div key={log.id} className="history-card">
+                <p>{log.created_at}: {log.notes}</p>
+              </div>
+            ))
+          )}
 
-          <button
-            onClick={async () => {
-              await supabase.auth.signOut()
-              setProfile(null)
-              setPage('home')
-              setMobileMenuOpen(false)
-            }}
-            className="nav-button"
-          >
-            Sign Out
-          </button>
-        </div>
+          <h3>Recent Monthly Logs</h3>
+          {monthlyLogs.length === 0 ? (
+            <p>No monthly logs found.</p>
+          ) : (
+            monthlyLogs.map((log) => (
+              <div key={log.id} className="history-card">
+                <p>{log.created_at}: {log.notes}</p>
+              </div>
+            ))
+          )}
+        </>
       )}
-
-      <div className="top-nav desktop-nav">
-        <button
-          onClick={() => setPage('home')}
-          className={page === 'home' ? 'nav-button nav-button-active' : 'nav-button'}
-        >
-          Home
-        </button>
-
-        <button
-          onClick={() => setPage('daily')}
-          className={page === 'daily' ? 'nav-button nav-button-active' : 'nav-button'}
-        >
-          Daily Log
-        </button>
-
-        <button
-          onClick={() => setPage('weekly')}
-          className={page === 'weekly' ? 'nav-button nav-button-active' : 'nav-button'}
-        >
-          Weekly Log
-        </button>
-
-        <button
-          onClick={() => setPage('monthly')}
-          className={page === 'monthly' ? 'nav-button nav-button-active' : 'nav-button'}
-        >
-          Monthly Progress
-        </button>
-
-        <button
-          onClick={() => setPage('history')}
-          className={page === 'history' ? 'nav-button nav-button-active' : 'nav-button'}
-        >
-          History
-        </button>
-
-        <button
-          onClick={() => setPage('profile')}
-          className={page === 'profile' ? 'nav-button nav-button-active' : 'nav-button'}
-        >
-          My Profile
-        </button>
-
-        {profile?.role === 'admin' && (
-          <button
-            onClick={() => setPage('team')}
-            className={page === 'team' ? 'nav-button nav-button-active' : 'nav-button'}
-          >
-            Team Dashboard
-          </button>
-        )}
-
-        <button
-          onClick={async () => {
-            await supabase.auth.signOut()
-            setProfile(null)
-            setPage('home')
-            setMobileMenuOpen(false)
-          }}
-          className="nav-button"
-        >
-          Sign Out
-        </button>
-
-        <select
-          className="theme-select"
-          value={theme}
-          onChange={(e) => setTheme(e.target.value)}
-          aria-label="Theme selector"
-        >
-          <option value="system">System</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-        </select>
-      </div>
-
-      <main className="app-main">{renderPage()}</main>
-
-      <div className="mobile-bottom-nav">
-        <button
-          type="button"
-          className={page === 'home' ? 'bottom-nav-button bottom-nav-button-active' : 'bottom-nav-button'}
-          onClick={() => {
-            setPage('home')
-            setMobileMenuOpen(false)
-          }}
-        >
-          Home
-        </button>
-        <button
-          type="button"
-          className={page === 'daily' ? 'bottom-nav-button bottom-nav-button-active' : 'bottom-nav-button'}
-          onClick={() => {
-            setPage('daily')
-            setMobileMenuOpen(false)
-          }}
-        >
-          Daily
-        </button>
-        <button
-          type="button"
-          className={page === 'history' ? 'bottom-nav-button bottom-nav-button-active' : 'bottom-nav-button'}
-          onClick={() => {
-            setPage('history')
-            setMobileMenuOpen(false)
-          }}
-        >
-          History
-        </button>
-        <button
-          type="button"
-          className={page === 'profile' ? 'bottom-nav-button bottom-nav-button-active' : 'bottom-nav-button'}
-          onClick={() => {
-            setPage('profile')
-            setMobileMenuOpen(false)
-          }}
-        >
-          Profile
-        </button>
-        <button
-          type="button"
-          className={mobileMenuOpen ? 'bottom-nav-button bottom-nav-button-active' : 'bottom-nav-button'}
-          onClick={() => setMobileMenuOpen((prev) => !prev)}
-        >
-          Menu
-        </button>
-      </div>
     </div>
   )
 }
-
-export default App

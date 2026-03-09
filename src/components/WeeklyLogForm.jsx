@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-function WeeklyLogForm() {
+function WeeklyLogForm({ profile }) {
     const [weeklyForm, setWeeklyForm] = useState({
         weekStart: '',
         monday: '',
@@ -24,10 +24,14 @@ function WeeklyLogForm() {
     const handleSubmit = async (e) => {
         e.preventDefault()
 
-        const { data: { user } } = await supabase.auth.getUser()
+        if (!profile?.id) {
+            alert('No profile found for this account.')
+            return
+        }
 
         const newLog = {
-            user_id: user.id,
+            profile_id: profile.id,
+            user_id: profile.id,
             week_start: weeklyForm.weekStart || null,
             monday: weeklyForm.monday,
             tuesday: weeklyForm.tuesday,

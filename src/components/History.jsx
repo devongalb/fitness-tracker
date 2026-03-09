@@ -1,209 +1,183 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-function History() {
+function Profile({ profile }) {
     const [dailyLogs, setDailyLogs] = useState([])
     const [weeklyLogs, setWeeklyLogs] = useState([])
     const [monthlyLogs, setMonthlyLogs] = useState([])
+    const [loading, setLoading] = useState(false)
+
+    const [aliases, setAliases] = useState([])
+    const [newAliasEmail, setNewAliasEmail] = useState('')
+    const [loadingAliases, setLoadingAliases] = useState(true)
+    const [savingAlias, setSavingAlias] = useState(false)
+    const [aliasMessage, setAliasMessage] = useState('')
 
     useEffect(() => {
-        loadLogs()
-    }, [])
+        const loadProfileData = async () => {
+            if (!profile?.id) {
+                setDailyLogs([])
+                setWeeklyLogs([])
+                setMonthlyLogs([])
+                setAliases([])
+                setLoading(false)
+                setLoadingAliases(false)
+                return
+            }
 
-    const loadLogs = async () => {
-        const { data: { user } } = await supabase.auth.getUser()
+            setLoading(true)
+            setLoadingAliases(true)
 
-        if (!user) return
+            const [
+                { data: dailyData },
+                { data: weeklyData },
+                { data: monthlyData },
+                { data: aliasData }
+            ] = await Promise.all([
+                supabase
+                    .from('daily_logs')
+                    .select('*')
+                    .eq('profile_id', profile.id)
+                    .order('created_at', { ascending: false })
+                    .limit(3),
+                supabase
+                    .from('weekly_logs')
+                    .select('*')
+                    .eq('profile_id', profile.id)
+                    .order('created_at', { ascending: false })
+                    .limit(3),
+                supabase
+                    .from('monthly_logs')
+                    .select('*')
+                    .eq('profile_id', profile.id)
+                    .order('created_at', { ascending: false })
+                    .limit(3),
+                supabase
+                    .from('profile_emails')
+                    .select('*')
+                    .eq('profile_id', profile.id)
+                    .order('created_at', { ascending: true })
+            ])
 
-        const { data: dailyData, error: dailyError } = await supabase
-            .from('daily_logs')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
+            setDailyLogs(dailyData || [])
+            setWeeklyLogs(weeklyData || [])
+            setMonthlyLogs(monthlyData || [])
+            setAliases(aliasData || [])
+            setLoading(false)
+            setLoadingAliases(false)
+        }
 
-        const { data: weeklyData, error: weeklyError } = await supabase
-            .from('weekly_logs')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
+        loadProfileData()
+    }, [profile])
 
-        const { data: monthlyData, error: monthlyError } = await supabase
-            .from('monthly_logs')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-
-        if (dailyError) console.error('Error loading daily logs:', dailyError)
-        if (weeklyError) console.error('Error loading weekly logs:', weeklyError)
-        if (monthlyError) console.error('Error loading monthly logs:', monthlyError)
-
-        setDailyLogs(dailyData || [])
-        setWeeklyLogs(weeklyData || [])
-        setMonthlyLogs(monthlyData || [])
+    const handleSaveProfile = async () => {
+        // existing save profile logic
     }
 
-    const deleteLog = async (tableName, id) => {
-        const confirmed = window.confirm('Delete this log?')
-        if (!confirmed) return
+    const handleAddAlias = async (e) => {
+        e.preventDefault()
+        setAliasMessage('')
 
-        const { error } = await supabase.from(tableName).delete().eq('id', id)
-
-        if (error) {
-            console.error('Error deleting log:', error)
-            alert('Failed to delete log')
+        if (!profile?.id) {
+            setAliasMessage('No profile found for this account.')
             return
         }
 
-        loadLogs()
+        const normalizedEmail = newAliasEmail.trim().toLowerCase()
+
+        if (!normalizedEmail) {
+            setAliasMessage('Enter an email address.')
+            return
+        }
+
+        if (normalizedEmail === (profile?.email || '').toLowerCase()) {
+            setAliasMessage('That email is already your primary email.')
+            return
+        }
+
+        if (aliases.some((alias) => alias.email?.toLowerCase() === normalizedEmail)) {
+            setAliasMessage('That alias already exists on your profile.')
+            return
+        }
+
+        setSavingAlias(true)
+
+        const { error } = await supabase
+            .from('profile_emails')
+            .insert({
+                profile_id: profile.id,
+                email: normalizedEmail,
+                is_primary: false
+            })
+
+        if (error) {
+            console.error('Error adding alias:', error)
+            setAliasMessage('Failed to add alias email.')
+            setSavingAlias(false)
+            return
+        }
+
+        const { data: aliasData } = await supabase
+            .from('profile_emails')
+            .select('*')
+            .eq('profile_id', profile.id)
+            .order('created_at', { ascending: true })
+
+        setAliases(aliasData || [])
+        setNewAliasEmail('')
+        setAliasMessage('Alias email added successfully.')
+        setSavingAlias(false)
     }
 
     return (
-        <div className="page-container">
-            <h2>Workout History</h2>
+        <div className="form-card">
+            <form>
+                {/* existing profile information form fields */}
+            </form>
 
-            <div className="history-section">
-                <h3 className="history-title">Daily Logs</h3>
-                <p className="history-section-subtitle">
-                    Your most recent daily workout entries appear first.
-                </p>
-                {dailyLogs.length === 0 && (
-                    <p className="history-empty">No daily logs yet.</p>
-                )}
-                {dailyLogs.map((log, index) => (
-                    <div key={log.id || index} className="history-card">
-                        <div className="history-card-header">
-                            <div>
-                                <h4 className="history-card-title">{log.workout_focus || 'Daily Workout'}</h4>
-                                <p className="history-card-meta"><strong>Date:</strong> {log.date}</p>
-                                {log.created_at && (
-                                    <p className="history-card-meta">
-                                        <strong>Entered:</strong> {new Date(log.created_at).toLocaleString()}
-                                    </p>
-                                )}
-                            </div>
+                <div className="form-section">
+                    <h3 className="form-section-title">Email Aliases</h3>
+                    <p className="form-helper-text">
+                        Add additional email addresses that should sign in to this same profile.
+                    </p>
 
-                            <button
-                                type="button"
-                                className="delete-button"
-                                onClick={() => deleteLog('daily_logs', log.id)}
-                            >
-                                Delete
-                            </button>
-                        </div>
+                    <p><strong>Primary Email:</strong> {profile?.email || 'Not available'}</p>
 
-                        <div className="history-grid">
-                            <p className="history-field"><strong>Exercise 1:</strong> {log.exercise1} ({log.exercise1_weight} lbs x {log.exercise1_reps})</p>
-                            <p className="history-field"><strong>Exercise 2:</strong> {log.exercise2} ({log.exercise2_weight} lbs x {log.exercise2_reps})</p>
-                            <p className="history-field"><strong>Cardio:</strong> {log.cardio_type}</p>
-                            <p className="history-field"><strong>Duration:</strong> {log.cardio_duration} minutes</p>
-                        </div>
+                    {aliasMessage && <p className="form-helper-text">{aliasMessage}</p>}
 
-                        {log.notes && (
-                            <details className="history-notes">
-                                <summary>Workout Notes</summary>
-                                <p>{log.notes}</p>
-                            </details>
-                        )}
-                    </div>
-                ))}
-            </div>
+                    {loadingAliases ? (
+                        <p>Loading email aliases...</p>
+                    ) : aliases.length === 0 ? (
+                        <p>No additional email aliases yet.</p>
+                    ) : (
+                        aliases
+                            .filter((alias) => !alias.is_primary)
+                            .map((alias) => (
+                                <div key={alias.id} className="history-card">
+                                    <p><strong>Alias:</strong> {alias.email}</p>
+                                </div>
+                            ))
+                    )}
 
-            <div className="history-section">
-                <h3 className="history-title">Weekly Logs</h3>
-                <p className="history-section-subtitle">
-                    Review training completed across each week.
-                </p>
-                {weeklyLogs.length === 0 && (
-                    <p className="history-empty">No weekly logs yet.</p>
-                )}
-                {weeklyLogs.map((log, index) => (
-                    <div key={log.id || index} className="history-card">
-                        <div className="history-card-header">
-                            <div>
-                                <h4 className="history-card-title">Week of {log.week_start}</h4>
-                                {log.created_at && (
-                                    <p className="history-card-meta">
-                                        <strong>Entered:</strong> {new Date(log.created_at).toLocaleString()}
-                                    </p>
-                                )}
-                            </div>
+                    <form onSubmit={handleAddAlias}>
+                        <label className="form-label">Add Alias Email</label>
+                        <input
+                            className="form-input"
+                            type="email"
+                            value={newAliasEmail}
+                            onChange={(e) => setNewAliasEmail(e.target.value)}
+                            placeholder="Enter another email address"
+                        />
 
-                            <button
-                                type="button"
-                                className="delete-button"
-                                onClick={() => deleteLog('weekly_logs', log.id)}
-                            >
-                                Delete
-                            </button>
-                        </div>
+                        <button className="form-button" type="submit" disabled={savingAlias}>
+                            {savingAlias ? 'Adding...' : 'Add Alias'}
+                        </button>
+                    </form>
+                </div>
 
-                        <div className="history-grid">
-                            <p className="history-field"><strong>Mon:</strong> {log.monday || '—'}</p>
-                            <p className="history-field"><strong>Tue:</strong> {log.tuesday || '—'}</p>
-                            <p className="history-field"><strong>Wed:</strong> {log.wednesday || '—'}</p>
-                            <p className="history-field"><strong>Thu:</strong> {log.thursday || '—'}</p>
-                            <p className="history-field"><strong>Fri:</strong> {log.friday || '—'}</p>
-                            <p className="history-field"><strong>Sat:</strong> {log.saturday || '—'}</p>
-                        </div>
-
-                        {log.notes && (
-                            <details className="history-notes">
-                                <summary>Weekly Notes</summary>
-                                <p>{log.notes}</p>
-                            </details>
-                        )}
-                    </div>
-                ))}
-            </div>
-
-            <div className="history-section">
-                <h3 className="history-title">Monthly Logs</h3>
-                <p className="history-section-subtitle">
-                    Track body measurements and strength progress over time.
-                </p>
-                {monthlyLogs.length === 0 && (
-                    <p className="history-empty">No monthly logs yet.</p>
-                )}
-                {monthlyLogs.map((log, index) => (
-                    <div key={log.id || index} className="history-card">
-                        <div className="history-card-header">
-                            <div>
-                                <h4 className="history-card-title">Month: {log.month}</h4>
-                                {log.created_at && (
-                                    <p className="history-card-meta">
-                                        <strong>Entered:</strong> {new Date(log.created_at).toLocaleString()}
-                                    </p>
-                                )}
-                            </div>
-
-                            <button
-                                type="button"
-                                className="delete-button"
-                                onClick={() => deleteLog('monthly_logs', log.id)}
-                            >
-                                Delete
-                            </button>
-                        </div>
-
-                        <div className="history-grid">
-                            <p className="history-field"><strong>Weight:</strong> {log.weight || '—'}</p>
-                            <p className="history-field"><strong>Waist:</strong> {log.waist || '—'}</p>
-                            <p className="history-field"><strong>Bench:</strong> {log.bench || '—'}</p>
-                            <p className="history-field"><strong>Squat:</strong> {log.squat || '—'}</p>
-                            <p className="history-field"><strong>Deadlift:</strong> {log.deadlift || '—'}</p>
-                        </div>
-
-                        {log.notes && (
-                            <details className="history-notes">
-                                <summary>Monthly Notes</summary>
-                                <p>{log.notes}</p>
-                            </details>
-                        )}
-                    </div>
-                ))}
-            </div>
+            {/* existing Progress Summary section */}
         </div>
     )
 }
 
-export default History
+export default Profile

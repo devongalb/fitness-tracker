@@ -1,176 +1,185 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
-function MonthlyLogForm() {
-    const [monthlyForm, setMonthlyForm] = useState({
-        month: '',
-        weight: '',
-        waist: '',
-        bench: '',
-        squat: '',
-        deadlift: '',
-        notes: ''
-    })
+function Profile({ profile }) {
+    const [dailyLogs, setDailyLogs] = useState([])
+    const [weeklyLogs, setWeeklyLogs] = useState([])
+    const [monthlyLogs, setMonthlyLogs] = useState([])
+    const [loading, setLoading] = useState(false)
 
-    const handleChange = (e) => {
-        const { name, value } = e.target
-        setMonthlyForm((prev) => ({
-            ...prev,
-            [name]: value
-        }))
-    }
+    const [aliases, setAliases] = useState([])
+    const [newAliasEmail, setNewAliasEmail] = useState('')
+    const [loadingAliases, setLoadingAliases] = useState(true)
+    const [savingAlias, setSavingAlias] = useState(false)
+    const [aliasMessage, setAliasMessage] = useState('')
 
-    const handleSubmit = async (e) => {
-        e.preventDefault()
+    useEffect(() => {
+        const loadProfileData = async () => {
+            if (!profile?.id) {
+                setDailyLogs([])
+                setWeeklyLogs([])
+                setMonthlyLogs([])
+                setAliases([])
+                setLoading(false)
+                setLoadingAliases(false)
+                return
+            }
 
-        const { data: { user } } = await supabase.auth.getUser()
+            setLoading(true)
+            setLoadingAliases(true)
 
-        const newLog = {
-            user_id: user.id,
-            month: monthlyForm.month,
-            weight: monthlyForm.weight ? Number(monthlyForm.weight) : null,
-            waist: monthlyForm.waist ? Number(monthlyForm.waist) : null,
-            bench: monthlyForm.bench ? Number(monthlyForm.bench) : null,
-            squat: monthlyForm.squat ? Number(monthlyForm.squat) : null,
-            deadlift: monthlyForm.deadlift ? Number(monthlyForm.deadlift) : null,
-            notes: monthlyForm.notes
+            const [
+                { data: dailyData },
+                { data: weeklyData },
+                { data: monthlyData },
+                { data: aliasData }
+            ] = await Promise.all([
+                supabase
+                    .from('daily_logs')
+                    .select('*')
+                    .eq('profile_id', profile.id)
+                    .order('created_at', { ascending: false })
+                    .limit(3),
+                supabase
+                    .from('weekly_logs')
+                    .select('*')
+                    .eq('profile_id', profile.id)
+                    .order('created_at', { ascending: false })
+                    .limit(3),
+                supabase
+                    .from('monthly_logs')
+                    .select('*')
+                    .eq('profile_id', profile.id)
+                    .order('created_at', { ascending: false })
+                    .limit(3),
+                supabase
+                    .from('profile_emails')
+                    .select('*')
+                    .eq('profile_id', profile.id)
+                    .order('created_at', { ascending: true })
+            ])
+
+            setDailyLogs(dailyData || [])
+            setWeeklyLogs(weeklyData || [])
+            setMonthlyLogs(monthlyData || [])
+            setAliases(aliasData || [])
+            setLoading(false)
+            setLoadingAliases(false)
         }
 
-        const { error } = await supabase.from('monthly_logs').insert([newLog])
+        loadProfileData()
+    }, [profile])
 
-        if (error) {
-            console.error('Error saving monthly log:', error)
-            alert('Failed to save monthly progress')
+    const handleSaveProfile = async () => {
+        // existing save profile logic
+    }
+
+    const handleAddAlias = async (e) => {
+        e.preventDefault()
+        setAliasMessage('')
+
+        if (!profile?.id) {
+            setAliasMessage('No profile found for this account.')
             return
         }
 
-        alert('Monthly progress saved')
+        const normalizedEmail = newAliasEmail.trim().toLowerCase()
 
-        setMonthlyForm({
-            month: '',
-            weight: '',
-            waist: '',
-            bench: '',
-            squat: '',
-            deadlift: '',
-            notes: ''
-        })
+        if (!normalizedEmail) {
+            setAliasMessage('Enter an email address.')
+            return
+        }
+
+        if (normalizedEmail === (profile?.email || '').toLowerCase()) {
+            setAliasMessage('That email is already your primary email.')
+            return
+        }
+
+        if (aliases.some((alias) => alias.email?.toLowerCase() === normalizedEmail)) {
+            setAliasMessage('That alias already exists on your profile.')
+            return
+        }
+
+        setSavingAlias(true)
+
+        const { error } = await supabase
+            .from('profile_emails')
+            .insert({
+                profile_id: profile.id,
+                email: normalizedEmail,
+                is_primary: false
+            })
+
+        if (error) {
+            console.error('Error adding alias:', error)
+            setAliasMessage('Failed to add alias email.')
+            setSavingAlias(false)
+            return
+        }
+
+        const { data: aliasData } = await supabase
+            .from('profile_emails')
+            .select('*')
+            .eq('profile_id', profile.id)
+            .order('created_at', { ascending: true })
+
+        setAliases(aliasData || [])
+        setNewAliasEmail('')
+        setAliasMessage('Alias email added successfully.')
+        setSavingAlias(false)
     }
 
     return (
         <div className="page-container">
-            <h2>Monthly Progress</h2>
-            <p className="form-helper-text">
-                Track monthly body measurements and strength progress.
-            </p>
-
-
-            <form onSubmit={handleSubmit} className="form-card">
-                <div className="form-section">
-                    <h3 className="form-section-title">Reporting Period</h3>
-
-                    <label className="form-label">Reporting Month</label>
-                    <select
-                        className="form-input"
-                        name="month"
-                        value={monthlyForm.month}
-                        onChange={handleChange}
-                        required
-                    >
-                        <option value="">Select a month</option>
-                        <option value="January">January</option>
-                        <option value="February">February</option>
-                        <option value="March">March</option>
-                        <option value="April">April</option>
-                        <option value="May">May</option>
-                        <option value="June">June</option>
-                        <option value="July">July</option>
-                        <option value="August">August</option>
-                        <option value="September">September</option>
-                        <option value="October">October</option>
-                        <option value="November">November</option>
-                        <option value="December">December</option>
-                    </select>
-                </div>
-
-                <div className="form-section">
-                    <h3 className="form-section-title">Body Measurements</h3>
-
-                    <label className="form-label">Weight</label>
-                    <input
-                        className="form-input"
-                        type="number"
-                        min="0"
-                        name="weight"
-                        value={monthlyForm.weight}
-                        onChange={handleChange}
-                    />
-
-                    <label className="form-label">Waist</label>
-                    <input
-                        className="form-input"
-                        type="number"
-                        min="0"
-                        name="waist"
-                        value={monthlyForm.waist}
-                        onChange={handleChange}
-                    />
-                </div>
-
-                <div className="form-section">
-                    <h3 className="form-section-title">Strength Progress</h3>
-
-                    <label className="form-label">Bench</label>
-                    <input
-                        className="form-input"
-                        type="number"
-                        min="0"
-                        name="bench"
-                        value={monthlyForm.bench}
-                        onChange={handleChange}
-                    />
-
-                    <label className="form-label">Squat</label>
-                    <input
-                        className="form-input"
-                        type="number"
-                        min="0"
-                        name="squat"
-                        value={monthlyForm.squat}
-                        onChange={handleChange}
-                    />
-
-                    <label className="form-label">Deadlift</label>
-                    <input
-                        className="form-input"
-                        type="number"
-                        min="0"
-                        name="deadlift"
-                        value={monthlyForm.deadlift}
-                        onChange={handleChange}
-                    />
-                </div>
-
-                <div className="form-section">
-                    <h3 className="form-section-title">Notes</h3>
-
-                    <label className="form-label">Monthly Notes</label>
-                    <textarea
-                        className="form-textarea"
-                        name="notes"
-                        value={monthlyForm.notes}
-                        onChange={handleChange}
-                        placeholder="Additional notes about your monthly progress..."
-                        rows={4}
-                    />
-                </div>
-
-                <button className="form-button" type="submit">
-                    Save Monthly Progress
-                </button>
+            <h2>Profile Information</h2>
+            <form className="form-card">
+                {/* existing profile form inputs */}
             </form>
+
+                <div className="form-section">
+                    <h3 className="form-section-title">Email Aliases</h3>
+                    <p className="form-helper-text">
+                        Add additional email addresses that should sign in to this same profile.
+                    </p>
+
+                    <p><strong>Primary Email:</strong> {profile?.email || 'Not available'}</p>
+
+                    {aliasMessage && <p className="form-helper-text">{aliasMessage}</p>}
+
+                    {loadingAliases ? (
+                        <p>Loading email aliases...</p>
+                    ) : aliases.length === 0 ? (
+                        <p>No additional email aliases yet.</p>
+                    ) : (
+                        aliases
+                            .filter((alias) => !alias.is_primary)
+                            .map((alias) => (
+                                <div key={alias.id} className="history-card">
+                                    <p><strong>Alias:</strong> {alias.email}</p>
+                                </div>
+                            ))
+                    )}
+
+                    <form onSubmit={handleAddAlias}>
+                        <label className="form-label">Add Alias Email</label>
+                        <input
+                            className="form-input"
+                            type="email"
+                            value={newAliasEmail}
+                            onChange={(e) => setNewAliasEmail(e.target.value)}
+                            placeholder="Enter another email address"
+                        />
+
+                        <button className="form-button" type="submit" disabled={savingAlias}>
+                            {savingAlias ? 'Adding...' : 'Add Alias'}
+                        </button>
+                    </form>
+                </div>
+
+            <h2>Progress Summary</h2>
+            {/* existing progress summary JSX */}
         </div>
     )
 }
 
-export default MonthlyLogForm
+export default Profile
