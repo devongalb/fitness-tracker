@@ -6,6 +6,15 @@ function Profile({ profile }) {
     const [weeklyLogs, setWeeklyLogs] = useState([])
     const [monthlyLogs, setMonthlyLogs] = useState([])
     const [loading, setLoading] = useState(true)
+    const [fullName, setFullName] = useState('')
+    const [teamName, setTeamName] = useState('')
+    const [savingProfile, setSavingProfile] = useState(false)
+    const [statusMessage, setStatusMessage] = useState('')
+
+    useEffect(() => {
+        setFullName(profile?.full_name || '')
+        setTeamName(profile?.team_name || '')
+    }, [profile])
 
     useEffect(() => {
         const loadProfileData = async () => {
@@ -48,6 +57,40 @@ function Profile({ profile }) {
         loadProfileData()
     }, [])
 
+    const handleSaveProfile = async (e) => {
+        e.preventDefault()
+        setSavingProfile(true)
+        setStatusMessage('')
+
+        const {
+            data: { user }
+        } = await supabase.auth.getUser()
+
+        if (!user) {
+            setStatusMessage('You must be signed in to update your profile.')
+            setSavingProfile(false)
+            return
+        }
+
+        const { error } = await supabase
+            .from('profiles')
+            .update({
+                full_name: fullName,
+                team_name: teamName
+            })
+            .eq('id', user.id)
+
+        if (error) {
+            console.error('Error updating profile:', error)
+            setStatusMessage('Failed to update profile.')
+            setSavingProfile(false)
+            return
+        }
+
+        setStatusMessage('Profile updated successfully.')
+        setSavingProfile(false)
+    }
+
     const latestDaily = dailyLogs[0]
     const latestWeekly = weeklyLogs[0]
     const latestMonthly = monthlyLogs[0]
@@ -59,15 +102,50 @@ function Profile({ profile }) {
                 View your profile details, latest activity, and progress summary.
             </p>
 
+            {statusMessage && <p className="form-helper-text">{statusMessage}</p>}
+
             <div className="form-card">
-                <div className="form-section">
+                <form onSubmit={handleSaveProfile} className="form-section">
                     <h3 className="form-section-title">Profile Information</h3>
 
-                    <p><strong>Name:</strong> {profile?.full_name || 'Not set yet'}</p>
-                    <p><strong>Email:</strong> {profile?.email || 'Not available'}</p>
-                    <p><strong>Team:</strong> {profile?.team_name || 'Not set yet'}</p>
-                    <p><strong>Role:</strong> {profile?.role || 'member'}</p>
-                </div>
+                    <label className="form-label">Full Name</label>
+                    <input
+                        className="form-input"
+                        type="text"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        placeholder="Enter your full name"
+                    />
+
+                    <label className="form-label">Email</label>
+                    <input
+                        className="form-input"
+                        type="text"
+                        value={profile?.email || ''}
+                        readOnly
+                    />
+
+                    <label className="form-label">Team Name</label>
+                    <input
+                        className="form-input"
+                        type="text"
+                        value={teamName}
+                        onChange={(e) => setTeamName(e.target.value)}
+                        placeholder="Enter your team or group"
+                    />
+
+                    <label className="form-label">Role</label>
+                    <input
+                        className="form-input"
+                        type="text"
+                        value={profile?.role || 'member'}
+                        readOnly
+                    />
+
+                    <button className="form-button" type="submit" disabled={savingProfile}>
+                        {savingProfile ? 'Saving...' : 'Save Profile'}
+                    </button>
+                </form>
 
                 <div className="form-section">
                     <h3 className="form-section-title">Progress Summary</h3>
@@ -81,9 +159,7 @@ function Profile({ profile }) {
                             <p><strong>Total Monthly Logs:</strong> {monthlyLogs.length}</p>
                             <p>
                                 <strong>Latest Submission:</strong>{' '}
-                                {latestDaily?.created_at ||
-                                    latestWeekly?.created_at ||
-                                    latestMonthly?.created_at
+                                {latestDaily?.created_at || latestWeekly?.created_at || latestMonthly?.created_at
                                     ? new Date(
                                         latestDaily?.created_at ||
                                         latestWeekly?.created_at ||
