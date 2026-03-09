@@ -5,12 +5,16 @@ import WeeklyLogForm from './components/WeeklyLogForm'
 import MonthlyLogForm from './components/MonthlyLogForm'
 import History from './components/History'
 import Auth from './components/Auth'
+import Profile from './components/Profile'
+import TeamDashboard from './components/TeamDashboard'
 import { supabase } from './lib/supabase'
 
 function App() {
   const [page, setPage] = useState('home')
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'system')
   const [session, setSession] = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
 
   useEffect(() => {
     const root = document.documentElement
@@ -27,46 +31,72 @@ function App() {
   }, [theme])
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const loadProfile = async (currentSession) => {
+      if (!currentSession?.user) {
+        setProfile(null)
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', currentSession.user.id)
+        .single()
+
+      if (error) {
+        console.error('Error loading profile:', error)
+        setProfile(null)
+        return
+      }
+
+      setProfile(data)
+    }
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session)
+      await loadProfile(session)
+      setAuthLoading(false)
     })
 
     const {
       data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session)
+      await loadProfile(session)
+      setAuthLoading(false)
     })
 
     return () => subscription.unsubscribe()
   }, [])
+
+  if (authLoading) {
+    return (
+      <div className="page-container">
+        <div className="form-card">
+          <p className="form-helper-text">Loading session...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (!session) {
     return <Auth />
   }
 
   const renderPage = () => {
-    if (page === 'daily') {
-      return <DailyLogForm />
-    }
-
-    if (page === 'weekly') {
-      return <WeeklyLogForm />
-    }
-
-    if (page === 'monthly') {
-      return <MonthlyLogForm />
-    }
-
-    if (page === 'history') {
-      return <History />
-    }
+    if (page === 'daily') return <DailyLogForm />
+    if (page === 'weekly') return <WeeklyLogForm />
+    if (page === 'monthly') return <MonthlyLogForm />
+    if (page === 'history') return <History />
+    if (page === 'profile') return <Profile profile={profile} />
+    if (page === 'team') return <TeamDashboard profile={profile} />
 
     return (
       <div className="home-hero">
         <h1>Fitness Tracker</h1>
         <p>
           Track daily workouts, weekly training, and monthly progress in one place.
-          Use the navigation above to log workouts and review your training history.
+          Use the navigation above to log workouts, review your history, and monitor both personal and team progress.
         </p>
 
         <div className="quick-actions">
@@ -89,6 +119,12 @@ function App() {
             <h3>History</h3>
             <p>Review saved workout logs and training history.</p>
           </div>
+
+          <div className="quick-action-card" onClick={() => setPage('profile')}>
+            <h3>My Profile</h3>
+            <p>View your profile, latest logs, and progress summary.</p>
+          </div>
+
         </div>
       </div>
     )
@@ -133,8 +169,26 @@ function App() {
         </button>
 
         <button
+          onClick={() => setPage('profile')}
+          className={page === 'profile' ? 'nav-button nav-button-active' : 'nav-button'}
+        >
+          My Profile
+        </button>
+
+        {profile?.role === 'admin' && (
+          <button
+            onClick={() => setPage('team')}
+            className={page === 'team' ? 'nav-button nav-button-active' : 'nav-button'}
+          >
+            Team Dashboard
+          </button>
+        )}
+
+        <button
           onClick={async () => {
             await supabase.auth.signOut()
+            setProfile(null)
+            setPage('home')
           }}
           className="nav-button"
         >
