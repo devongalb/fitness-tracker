@@ -32,76 +32,81 @@ function App() {
 
   useEffect(() => {
 const loadProfile = async (currentSession) => {
-  if (!currentSession?.user?.email || !currentSession?.user?.id) {
-    setProfile(null)
-    return
-  }
+const loadProfile = async (currentSession) => {
+  try {
+    if (!currentSession?.user?.email || !currentSession?.user?.id) {
+      setProfile(null)
+      return
+    }
 
-  const signedInEmail = currentSession.user.email.toLowerCase()
-  const authUserId = currentSession.user.id
-  console.log('SESSION USER:', currentSession.user)
-console.log('SIGNED IN EMAIL:', signedInEmail)
-console.log('AUTH USER ID:', authUserId)
+    const signedInEmail = currentSession.user.email.toLowerCase()
+    const authUserId = currentSession.user.id
 
-const { data: profileData, error: profileError } = await supabase
-  .from('profiles')
-  .select('*')
-  .eq('id', authUserId)
-  .maybeSingle()
-
-console.log('AUTH USER ID:', authUserId)
-console.log('PROFILE DATA:', profileData)
-console.log('PROFILE ERROR:', profileError)
-
-  if (profileError) {
-    console.error('Error loading profile:', profileError)
-    setProfile(null)
-    return
-  }
-
-  if (!profileData) {
-    console.error('No profile row found for auth user.')
-    setProfile(null)
-    return
-  }
-
-  if (profileData.email !== signedInEmail) {
-    const { error: updateProfileEmailError } = await supabase
+    const { data: profileData, error: profileError } = await supabase
       .from('profiles')
-      .update({ email: signedInEmail })
+      .select('*')
       .eq('id', authUserId)
+      .maybeSingle()
 
-    if (updateProfileEmailError) {
-      console.error('Error syncing profile email:', updateProfileEmailError)
+    if (profileError) {
+      console.error('Error loading profile:', profileError)
+      setProfile(null)
+      return
     }
-  }
 
-  const { data: aliasRow, error: aliasError } = await supabase
-    .from('profile_emails')
-    .select('id')
-    .eq('email', signedInEmail)
-    .maybeSingle()
+    if (!profileData) {
+      console.error('No profile row found for auth user.')
+      setProfile(null)
+      return
+    }
 
-  if (aliasError) {
-    console.error('Error loading profile alias:', aliasError)
-  }
+    if (profileData.email !== signedInEmail) {
+      const { error: updateProfileEmailError } = await supabase
+        .from('profiles')
+        .update({ email: signedInEmail })
+        .eq('id', authUserId)
 
-  if (!aliasRow) {
-    const { error: insertPrimaryAliasError } = await supabase
+      if (updateProfileEmailError) {
+        console.error('Error syncing profile email:', updateProfileEmailError)
+      }
+    }
+
+    const { data: aliasRow, error: aliasError } = await supabase
       .from('profile_emails')
-      .upsert(
-        {
-          profile_id: authUserId,
-          email: signedInEmail,
-          is_primary: true
-        },
-        { onConflict: 'email' }
-      )
+      .select('id')
+      .eq('email', signedInEmail)
+      .maybeSingle()
 
-    if (insertPrimaryAliasError) {
-      console.error('Error inserting primary alias:', insertPrimaryAliasError)
+    if (aliasError) {
+      console.error('Error loading profile alias:', aliasError)
     }
+
+    if (!aliasRow) {
+      const { error: insertPrimaryAliasError } = await supabase
+        .from('profile_emails')
+        .upsert(
+          {
+            profile_id: authUserId,
+            email: signedInEmail,
+            is_primary: true
+          },
+          { onConflict: 'email' }
+        )
+
+      if (insertPrimaryAliasError) {
+        console.error('Error inserting primary alias:', insertPrimaryAliasError)
+      }
+    }
+
+    setProfile({
+      ...profileData,
+      email: signedInEmail
+    })
+  } catch (error) {
+    console.error('Unexpected loadProfile error:', error)
+    setProfile(null)
   }
+}
 
 console.log('SETTING PROFILE:', {
   ...profileData,
@@ -115,18 +120,30 @@ console.log('SETTING PROFILE:', {
 }
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session)
-      await loadProfile(session)
-      setAuthLoading(false)
-    })
+  try {
+    setSession(session)
+    await loadProfile(session)
+  } catch (error) {
+    console.error('Error during initial session load:', error)
+    setProfile(null)
+  } finally {
+    setAuthLoading(false)
+  }
+})
 
-    const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session)
-      await loadProfile(session)
-      setAuthLoading(false)
-    })
+const {
+  data: { subscription }
+} = supabase.auth.onAuthStateChange(async (_event, session) => {
+  try {
+    setSession(session)
+    await loadProfile(session)
+  } catch (error) {
+    console.error('Error during auth state change:', error)
+    setProfile(null)
+  } finally {
+    setAuthLoading(false)
+  }
+})
 
     return () => subscription.unsubscribe()
   }, [])
@@ -193,7 +210,6 @@ console.log('SETTING PROFILE:', {
         <h1>Fitness Tracker</h1>
         <p>
           Track daily workouts, weekly training, and monthly progress in one place.
-          Use the navigation above to log workouts, review your history, and monitor both personal and team progress.
         </p>
 
         <div className="quick-actions">
