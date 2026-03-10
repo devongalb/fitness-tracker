@@ -39,6 +39,9 @@ const loadProfile = async (currentSession) => {
 
   const signedInEmail = currentSession.user.email.toLowerCase()
   const authUserId = currentSession.user.id
+  console.log('SESSION USER:', currentSession.user)
+console.log('SIGNED IN EMAIL:', signedInEmail)
+console.log('AUTH USER ID:', authUserId)
 
 const { data: profileData, error: profileError } = await supabase
   .from('profiles')
@@ -99,6 +102,11 @@ console.log('PROFILE ERROR:', profileError)
       console.error('Error inserting primary alias:', insertPrimaryAliasError)
     }
   }
+
+console.log('SETTING PROFILE:', {
+  ...profileData,
+  email: signedInEmail
+})
 
   setProfile({
     ...profileData,
