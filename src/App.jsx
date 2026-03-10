@@ -32,12 +32,13 @@ function App() {
 
   useEffect(() => {
     const loadProfile = async (currentSession) => {
-      if (!currentSession?.user?.email) {
+      if (!currentSession?.user?.email || !currentSession?.user?.id) {
         setProfile(null)
         return
       }
 
       const signedInEmail = currentSession.user.email.toLowerCase()
+      const authUserId = currentSession.user.id
 
       const { data: aliasRow, error: aliasError } = await supabase
         .from('profile_emails')
@@ -45,48 +46,41 @@ function App() {
         .eq('email', signedInEmail)
         .maybeSingle()
 
-      let profileId = aliasRow?.profile_id || null
-
       if (aliasError) {
         console.error('Error loading profile alias:', aliasError)
       }
 
-      if (!profileId && currentSession.user.id) {
-        const { data: fallbackProfile, error: fallbackProfileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', currentSession.user.id)
-          .maybeSingle()
+      const profileId = aliasRow?.profile_id || authUserId
 
-        if (fallbackProfileError) {
-          console.error('Error loading fallback profile:', fallbackProfileError)
-          setProfile(null)
-          return
-        }
-
-        if (fallbackProfile) {
-          profileId = fallbackProfile.id
-        }
-      }
-
-      if (!profileId) {
-        setProfile(null)
-        return
-      }
-
-      const { data, error } = await supabase
+      const { data: existingProfile, error: existingProfileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', profileId)
-        .single()
+        .maybeSingle()
 
-      if (error) {
-        console.error('Error loading profile:', error)
+      if (existingProfileError) {
+        console.error('Error loading profile:', existingProfileError)
         setProfile(null)
         return
       }
 
-      if (data.email !== signedInEmail) {
+      if (!existingProfile) {
+        const { error: upsertProfileError } = await supabase
+          .from('profiles')
+          .upsert(
+            {
+              id: authUserId,
+              email: signedInEmail
+            },
+            { onConflict: 'id' }
+          )
+
+        if (upsertProfileError) {
+          console.error('Error creating profile:', upsertProfileError)
+          setProfile(null)
+          return
+        }
+      } else if (existingProfile.email !== signedInEmail) {
         const { error: updateProfileEmailError } = await supabase
           .from('profiles')
           .update({ email: signedInEmail })
@@ -100,19 +94,34 @@ function App() {
       if (!aliasRow) {
         const { error: insertPrimaryAliasError } = await supabase
           .from('profile_emails')
-          .insert({
-            profile_id: profileId,
-            email: signedInEmail,
-            is_primary: true
-          })
+          .upsert(
+            {
+              profile_id: authUserId,
+              email: signedInEmail,
+              is_primary: true
+            },
+            { onConflict: 'email' }
+          )
 
         if (insertPrimaryAliasError) {
           console.error('Error inserting primary alias:', insertPrimaryAliasError)
         }
       }
 
+      const { data: finalProfile, error: finalProfileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUserId)
+        .single()
+
+      if (finalProfileError) {
+        console.error('Error loading final profile:', finalProfileError)
+        setProfile(null)
+        return
+      }
+
       setProfile({
-        ...data,
+        ...finalProfile,
         email: signedInEmail
       })
     }
