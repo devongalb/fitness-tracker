@@ -59,6 +59,8 @@ body {
 
 .page-container {
   padding: 16px 0 32px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .top-nav {
@@ -99,6 +101,7 @@ body {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
   padding: 32px;
   margin-top: 16px;
+  box-sizing: border-box;
 }
 
 .home-hero h1 {
@@ -443,6 +446,9 @@ select.form-input {
   border-radius: 12px;
   background: var(--card-alt);
   margin-bottom: 2px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .form-section-title {
@@ -512,6 +518,17 @@ select.form-input {
 
   .page-container {
     padding: 12px 0 24px;
+  }
+
+  .page-container,
+  .home-hero,
+  .form-card,
+  .form-section,
+  .history-section,
+  .history-card {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .top-nav {
@@ -587,6 +604,9 @@ select.form-input {
   .form-textarea,
   select.form-input {
     font-size: 16px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .history-section {

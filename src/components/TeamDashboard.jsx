@@ -133,22 +133,22 @@ const groupMembers = useMemo(() => {
 
         const currentMonthName = today.toLocaleString('en-US', { month: 'long' })
 
-        const submittedDailyToday = new Set(
-            dailyLogs
-                .filter((log) => log.date === todayKey && groupMemberIds.has(log.user_id))
-                .map((log) => log.user_id)
-        )
+const submittedDailyToday = new Set(
+    dailyLogs
+        .filter((log) => log.date === todayKey && groupMemberIds.has(log.profile_id || log.user_id))
+        .map((log) => log.profile_id || log.user_id)
+)
 
         const submittedWeeklyThisWeek = new Set(
             weeklyLogs
-                .filter((log) => log.week_start === weekStartKey && groupMemberIds.has(log.user_id))
-                .map((log) => log.user_id)
+                .filter((log) => log.week_start === weekStartKey && groupMemberIds.has(log.profile_id || log.user_id))
+                .map((log) => log.profile_id || log.user_id)
         )
 
         const submittedMonthlyThisMonth = new Set(
             monthlyLogs
-                .filter((log) => log.month === currentMonthName && groupMemberIds.has(log.user_id))
-                .map((log) => log.user_id)
+                .filter((log) => log.month === currentMonthName && groupMemberIds.has(log.profile_id || log.user_id))
+                .map((log) => log.profile_id || log.user_id)
         )
 
         const missingDaily = groupMembers.filter((member) => !submittedDailyToday.has(member.id))
@@ -170,27 +170,27 @@ const groupMembers = useMemo(() => {
 
         const recentActivity = [
             ...dailyLogs
-                .filter((log) => groupMemberIds.has(log.user_id))
+                .filter((log) => groupMemberIds.has(log.profile_id || log.user_id))
                 .map((log) => ({
                     type: 'Daily',
                     created_at: log.created_at,
-                    user_id: log.user_id,
+                    user_id: log.profile_id || log.user_id,
                     summary: log.workout_focus || 'Daily workout'
                 })),
             ...weeklyLogs
-                .filter((log) => groupMemberIds.has(log.user_id))
+                .filter((log) => groupMemberIds.has(log.profile_id || log.user_id))
                 .map((log) => ({
                     type: 'Weekly',
                     created_at: log.created_at,
-                    user_id: log.user_id,
+                    user_id: log.profile_id || log.user_id,
                     summary: log.week_start ? `Week of ${log.week_start}` : 'Weekly log'
                 })),
             ...monthlyLogs
-                .filter((log) => groupMemberIds.has(log.user_id))
+                .filter((log) => groupMemberIds.has(log.profile_id || log.user_id))
                 .map((log) => ({
                     type: 'Monthly',
                     created_at: log.created_at,
-                    user_id: log.user_id,
+                    user_id: log.profile_id || log.user_id,
                     summary: log.month || 'Monthly progress'
                 }))
         ]
