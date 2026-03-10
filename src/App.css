@@ -609,9 +609,10 @@ select.form-input {
 
   .form-card {
     gap: 14px;
-    padding: 12px;
+    padding: 16px;
     margin: 0;
-    max-width: 100%;
+    width: 100%;
+    max-width: none;
   }
 
   .form-section {
@@ -646,12 +647,33 @@ select.form-input {
   input[type='date'],
   input[type='date'].form-input {
     display: block;
+    appearance: none;
+    -webkit-appearance: none;
     min-width: 0;
     width: 100%;
     max-width: 100%;
+    inline-size: 100%;
     max-inline-size: 100%;
     box-sizing: border-box;
     overflow: hidden;
+    padding: 10px 8px;
+    font-size: 15px;
+    line-height: 1.2;
+  }
+
+  input[type='date']::-webkit-calendar-picker-indicator,
+  input[type='date'].form-input::-webkit-calendar-picker-indicator {
+    margin: 0;
+  }
+
+  input[type='date']::-webkit-datetime-edit,
+  input[type='date'].form-input::-webkit-datetime-edit,
+  input[type='date']::-webkit-datetime-edit-fields-wrapper,
+  input[type='date'].form-input::-webkit-datetime-edit-fields-wrapper,
+  input[type='date']::-webkit-date-and-time-value,
+  input[type='date'].form-input::-webkit-date-and-time-value {
+    padding: 0;
+    margin: 0;
   }
 
   .history-card-header {
