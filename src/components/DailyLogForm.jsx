@@ -1,47 +1,160 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
+const WORKOUT_TYPE_OPTIONS = [
+    'Chest',
+    'Back',
+    'Legs',
+    'Shoulders',
+    'Arms',
+    'Upper Body',
+    'Lower Body',
+    'Full Body',
+    'Cardio',
+    'Mobility / Recovery',
+    'Rest Day'
+]
+
+const STRENGTH_FOCUS_OPTIONS = new Set([
+    'Chest',
+    'Back',
+    'Legs',
+    'Shoulders',
+    'Arms',
+    'Upper Body',
+    'Lower Body',
+    'Full Body'
+])
+
 function DailyLogForm({ profile }) {
     const [dailyForm, setDailyForm] = useState({
-        restDay: false,
         date: '',
-        workoutFocus: '',
-        exercise1: '',
-        exercise1Weight: '',
-        exercise1Reps: '',
-        exercise2: '',
-        exercise2Weight: '',
-        exercise2Reps: '',
+        selectedWorkoutType: '',
+        selectedWorkouts: [],
+        exercises: [
+            {
+                id: 1,
+                name: '',
+                weight: '',
+                reps: ''
+            }
+        ],
         cardioType: '',
         cardioDuration: '',
         notes: ''
     })
 
+    const isRestDay = dailyForm.selectedWorkouts.includes('Rest Day')
+    const needsStrengthFields = dailyForm.selectedWorkouts.some((workout) => STRENGTH_FOCUS_OPTIONS.has(workout))
+    const needsCardioFields = dailyForm.selectedWorkouts.includes('Cardio')
+
     const handleDailyChange = (e) => {
-        const { name, value, type, checked } = e.target
-        const nextValue = type === 'checkbox' ? checked : value
+        const { name, value } = e.target
+        setDailyForm((prev) => ({
+            ...prev,
+            [name]: value
+        }))
+    }
+
+    const handleAddWorkoutType = () => {
+        if (!dailyForm.selectedWorkoutType) {
+            return
+        }
 
         setDailyForm((prev) => {
-            if (name === 'restDay') {
+            const nextWorkout = prev.selectedWorkoutType
+
+            if (prev.selectedWorkouts.includes(nextWorkout)) {
                 return {
                     ...prev,
-                    restDay: checked,
-                    workoutFocus: checked ? 'Rest Day' : prev.workoutFocus,
-                    exercise1: checked ? '' : prev.exercise1,
-                    exercise1Weight: checked ? '' : prev.exercise1Weight,
-                    exercise1Reps: checked ? '' : prev.exercise1Reps,
-                    exercise2: checked ? '' : prev.exercise2,
-                    exercise2Weight: checked ? '' : prev.exercise2Weight,
-                    exercise2Reps: checked ? '' : prev.exercise2Reps,
-                    cardioType: checked ? '' : prev.cardioType,
-                    cardioDuration: checked ? '' : prev.cardioDuration,
-                    notes: checked && !prev.notes ? 'Rest day.' : prev.notes
+                    selectedWorkoutType: ''
                 }
             }
 
+            if (nextWorkout === 'Rest Day') {
+                return {
+                    ...prev,
+                    selectedWorkoutType: '',
+                    selectedWorkouts: ['Rest Day'],
+                    exercises: [
+                        {
+                            id: 1,
+                            name: '',
+                            weight: '',
+                            reps: ''
+                        }
+                    ],
+                    cardioType: '',
+                    cardioDuration: '',
+                    notes: prev.notes || 'Rest day.'
+                }
+            }
+
+            const nonRestSelections = prev.selectedWorkouts.filter((workout) => workout !== 'Rest Day')
+
             return {
                 ...prev,
-                [name]: nextValue
+                selectedWorkoutType: '',
+                selectedWorkouts: [...nonRestSelections, nextWorkout]
+            }
+        })
+    }
+
+    const handleRemoveWorkoutType = (workoutToRemove) => {
+        setDailyForm((prev) => ({
+            ...prev,
+            selectedWorkouts: prev.selectedWorkouts.filter((workout) => workout !== workoutToRemove)
+        }))
+    }
+
+    const handleExerciseChange = (exerciseId, field, value) => {
+        setDailyForm((prev) => ({
+            ...prev,
+            exercises: prev.exercises.map((exercise) =>
+                exercise.id === exerciseId
+                    ? { ...exercise, [field]: value }
+                    : exercise
+            )
+        }))
+    }
+
+    const handleAddExercise = () => {
+        setDailyForm((prev) => {
+            const nextId = prev.exercises.length === 0
+                ? 1
+                : Math.max(...prev.exercises.map((exercise) => exercise.id)) + 1
+
+            return {
+                ...prev,
+                exercises: [
+                    ...prev.exercises,
+                    {
+                        id: nextId,
+                        name: '',
+                        weight: '',
+                        reps: ''
+                    }
+                ]
+            }
+        })
+    }
+
+    const handleRemoveExercise = (exerciseId) => {
+        setDailyForm((prev) => {
+            const remainingExercises = prev.exercises.filter((exercise) => exercise.id !== exerciseId)
+
+            return {
+                ...prev,
+                exercises: remainingExercises.length > 0
+                    ? remainingExercises
+                    : [
+                        {
+                            id: 1,
+                            name: '',
+                            weight: '',
+                            reps: ''
+                        }
+                    ]
             }
         })
     }
@@ -54,20 +167,49 @@ function DailyLogForm({ profile }) {
             return
         }
 
+        if (dailyForm.selectedWorkouts.length === 0) {
+            alert('Select at least one workout type.')
+            return
+        }
+
+        if (needsStrengthFields) {
+            const hasIncompleteExercise = dailyForm.exercises.some(
+                (exercise) => !exercise.name || !exercise.weight || !exercise.reps
+            )
+
+            if (hasIncompleteExercise) {
+                alert('Complete all exercise fields or remove unused exercise rows.')
+                return
+            }
+        }
+
+        const workoutFocusValue = isRestDay
+            ? 'Rest Day'
+            : dailyForm.selectedWorkouts.join(', ')
+
+        const exerciseEntries = needsStrengthFields ? dailyForm.exercises : []
+        const exercise1 = exerciseEntries[0] || { name: 'N/A', weight: 0, reps: 0 }
+        const exercise2 = exerciseEntries[1] || { name: 'N/A', weight: 0, reps: 0 }
+        const additionalExercises = exerciseEntries.slice(2)
+
         const newLog = {
             profile_id: profile.id,
             user_id: profile.id,
             date: dailyForm.date,
-            workout_focus: dailyForm.restDay ? 'Rest Day' : dailyForm.workoutFocus,
-            exercise1: dailyForm.restDay ? 'Rest Day' : dailyForm.exercise1,
-            exercise1_weight: dailyForm.restDay ? 0 : Number(dailyForm.exercise1Weight),
-            exercise1_reps: dailyForm.restDay ? 0 : Number(dailyForm.exercise1Reps),
-            exercise2: dailyForm.restDay ? 'Rest Day' : dailyForm.exercise2,
-            exercise2_weight: dailyForm.restDay ? 0 : Number(dailyForm.exercise2Weight),
-            exercise2_reps: dailyForm.restDay ? 0 : Number(dailyForm.exercise2Reps),
-            cardio_type: dailyForm.restDay ? 'Rest Day' : dailyForm.cardioType,
-            cardio_duration: dailyForm.restDay ? 0 : Number(dailyForm.cardioDuration),
-            notes: dailyForm.notes
+            workout_focus: workoutFocusValue,
+            exercise1: needsStrengthFields ? exercise1.name : 'N/A',
+            exercise1_weight: needsStrengthFields ? Number(exercise1.weight) : 0,
+            exercise1_reps: needsStrengthFields ? Number(exercise1.reps) : 0,
+            exercise2: needsStrengthFields ? exercise2.name : 'N/A',
+            exercise2_weight: needsStrengthFields ? Number(exercise2.weight) : 0,
+            exercise2_reps: needsStrengthFields ? Number(exercise2.reps) : 0,
+            cardio_type: needsCardioFields ? dailyForm.cardioType : isRestDay ? 'Rest Day' : 'N/A',
+            cardio_duration: needsCardioFields ? Number(dailyForm.cardioDuration) : 0,
+            notes: additionalExercises.length > 0
+                ? `${dailyForm.notes ? `${dailyForm.notes}\n\n` : ''}Additional exercises: ${additionalExercises
+                    .map((exercise) => `${exercise.name} - ${exercise.weight} x ${exercise.reps}`)
+                    .join('; ')}`
+                : dailyForm.notes
         }
 
         const { error } = await supabase.from('daily_logs').insert([newLog])
@@ -81,15 +223,17 @@ function DailyLogForm({ profile }) {
         alert('Workout saved')
 
         setDailyForm({
-            restDay: false,
             date: '',
-            workoutFocus: '',
-            exercise1: '',
-            exercise1Weight: '',
-            exercise1Reps: '',
-            exercise2: '',
-            exercise2Weight: '',
-            exercise2Reps: '',
+            selectedWorkoutType: '',
+            selectedWorkouts: [],
+            exercises: [
+                {
+                    id: 1,
+                    name: '',
+                    weight: '',
+                    reps: ''
+                }
+            ],
             cardioType: '',
             cardioDuration: '',
             notes: ''
@@ -107,17 +251,6 @@ function DailyLogForm({ profile }) {
                 <div className="form-section">
                     <h3 className="form-section-title">Workout Information</h3>
 
-                    <label className="form-label">
-                        <input
-                            type="checkbox"
-                            name="restDay"
-                            checked={dailyForm.restDay}
-                            onChange={handleDailyChange}
-                            style={{ marginRight: '8px' }}
-                        />
-                        Rest Day
-                    </label>
-
                     <label className="form-label">Date</label>
                     <input
                         className="form-input"
@@ -128,100 +261,110 @@ function DailyLogForm({ profile }) {
                         required
                     />
 
-                    <label className="form-label">Workout Focus</label>
-                    <input
+                    <label className="form-label">Workout Type</label>
+                    <select
                         className="form-input"
-                        type="text"
-                        name="workoutFocus"
-                        value={dailyForm.workoutFocus}
+                        name="selectedWorkoutType"
+                        value={dailyForm.selectedWorkoutType}
                         onChange={handleDailyChange}
-                        placeholder="Leg day, push, pull, etc."
-                        required={!dailyForm.restDay}
-                    />
+                    >
+                        <option value="">Select workout type</option>
+                        {WORKOUT_TYPE_OPTIONS.map((option) => (
+                            <option key={option} value={option}>
+                                {option}
+                            </option>
+                        ))}
+                    </select>
+
+                    <button
+                        type="button"
+                        className="form-button"
+                        onClick={handleAddWorkoutType}
+                        style={{ marginTop: 0 }}
+                    >
+                        Add Workout Type
+                    </button>
+
+                    {dailyForm.selectedWorkouts.length > 0 && (
+                        <div className="history-card">
+                            <p><strong>Selected Workouts:</strong></p>
+                            {dailyForm.selectedWorkouts.map((workout) => (
+                                <div key={workout} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', marginBottom: '8px' }}>
+                                    <span>{workout}</span>
+                                    <button
+                                        type="button"
+                                        className="delete-button"
+                                        onClick={() => handleRemoveWorkoutType(workout)}
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 <div className="form-section">
-                    <h3 className="form-section-title">Exercise 1</h3>
+                    <h3 className="form-section-title">Exercises</h3>
 
-                    <label className="form-label">Exercise Name</label>
-                    <input
-                        className="form-input"
-                        type="text"
-                        name="exercise1"
-                        value={dailyForm.exercise1}
-                        onChange={handleDailyChange}
-                        placeholder="Bench Press"
-                        disabled={dailyForm.restDay}
-                        required={!dailyForm.restDay}
-                    />
+                    {dailyForm.exercises.map((exercise, index) => (
+                        <div key={exercise.id} className="history-card">
+                            <p><strong>Exercise {index + 1}</strong></p>
 
-                    <label className="form-label">Weight</label>
-                    <input
-                        className="form-input"
-                        type="number"
-                        min="0"
-                        name="exercise1Weight"
-                        value={dailyForm.exercise1Weight}
-                        onChange={handleDailyChange}
-                        placeholder="Weight used"
-                        disabled={dailyForm.restDay}
-                        required={!dailyForm.restDay}
-                    />
+                            <label className="form-label">Exercise Name</label>
+                            <input
+                                className="form-input"
+                                type="text"
+                                value={exercise.name}
+                                onChange={(e) => handleExerciseChange(exercise.id, 'name', e.target.value)}
+                                placeholder="Bench Press"
+                                disabled={!needsStrengthFields}
+                                required={needsStrengthFields}
+                            />
 
-                    <label className="form-label">Reps</label>
-                    <input
-                        className="form-input"
-                        type="number"
-                        min="0"
-                        name="exercise1Reps"
-                        value={dailyForm.exercise1Reps}
-                        onChange={handleDailyChange}
-                        placeholder="Number of reps"
-                        disabled={dailyForm.restDay}
-                        required={!dailyForm.restDay}
-                    />
-                </div>
+                            <label className="form-label">Weight</label>
+                            <input
+                                className="form-input"
+                                type="number"
+                                min="0"
+                                value={exercise.weight}
+                                onChange={(e) => handleExerciseChange(exercise.id, 'weight', e.target.value)}
+                                placeholder="Weight used"
+                                disabled={!needsStrengthFields}
+                                required={needsStrengthFields}
+                            />
 
-                <div className="form-section">
-                    <h3 className="form-section-title">Exercise 2</h3>
+                            <label className="form-label">Reps</label>
+                            <input
+                                className="form-input"
+                                type="number"
+                                min="0"
+                                value={exercise.reps}
+                                onChange={(e) => handleExerciseChange(exercise.id, 'reps', e.target.value)}
+                                placeholder="Number of reps"
+                                disabled={!needsStrengthFields}
+                                required={needsStrengthFields}
+                            />
 
-                    <label className="form-label">Exercise Name</label>
-                    <input
-                        className="form-input"
-                        type="text"
-                        name="exercise2"
-                        value={dailyForm.exercise2}
-                        onChange={handleDailyChange}
-                        placeholder="Squats"
-                        disabled={dailyForm.restDay}
-                        required={!dailyForm.restDay}
-                    />
+                            <button
+                                type="button"
+                                className="delete-button"
+                                onClick={() => handleRemoveExercise(exercise.id)}
+                                disabled={!needsStrengthFields}
+                            >
+                                Remove Exercise
+                            </button>
+                        </div>
+                    ))}
 
-                    <label className="form-label">Weight</label>
-                    <input
-                        className="form-input"
-                        type="number"
-                        min="0"
-                        name="exercise2Weight"
-                        value={dailyForm.exercise2Weight}
-                        onChange={handleDailyChange}
-                        placeholder="Weight used"
-                        disabled={dailyForm.restDay}
-                        required={!dailyForm.restDay}
-                    />
-
-                    <label className="form-label">Reps</label>
-                    <input
-                        className="form-input"
-                        type="number"
-                        min="0"
-                        name="exercise2Reps"
-                        value={dailyForm.exercise2Reps}
-                        onChange={handleDailyChange}
-                        placeholder="Number of reps"
-                        disabled={dailyForm.restDay}
-                        required={!dailyForm.restDay}
-                    />
+                    <button
+                        type="button"
+                        className="form-button"
+                        onClick={handleAddExercise}
+                        disabled={!needsStrengthFields}
+                    >
+                        Add Exercise
+                    </button>
                 </div>
 
                 <div className="form-section">
@@ -235,8 +378,8 @@ function DailyLogForm({ profile }) {
                         value={dailyForm.cardioType}
                         onChange={handleDailyChange}
                         placeholder="Run, Bike, Row"
-                        disabled={dailyForm.restDay}
-                        required={!dailyForm.restDay}
+                        disabled={!needsCardioFields}
+                        required={needsCardioFields}
                     />
 
                     <label className="form-label">Cardio Duration (minutes)</label>
@@ -248,8 +391,8 @@ function DailyLogForm({ profile }) {
                         value={dailyForm.cardioDuration}
                         onChange={handleDailyChange}
                         placeholder="Duration in minutes"
-                        disabled={dailyForm.restDay}
-                        required={!dailyForm.restDay}
+                        disabled={!needsCardioFields}
+                        required={needsCardioFields}
                     />
                 </div>
 
