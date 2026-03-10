@@ -98,7 +98,19 @@ function App() {
     return <Auth />
   }
 
-  const renderPage = () => {
+   const renderPage = () => {
+    const needsGroupSelection = session && profile && !profile.team_name
+
+    if (needsGroupSelection && page !== 'profile') {
+      return (
+        <Profile
+          profile={profile}
+          onProfileUpdate={(updatedProfile) => setProfile(updatedProfile)}
+          requireGroupSelection={true}
+        />
+      )
+    }
+
     if (page === 'daily') return <DailyLogForm profile={profile} />
     if (page === 'weekly') return <WeeklyLogForm profile={profile} />
     if (page === 'monthly') return <MonthlyLogForm profile={profile} />
@@ -109,6 +121,7 @@ function App() {
         <Profile
           profile={profile}
           onProfileUpdate={(updatedProfile) => setProfile(updatedProfile)}
+          requireGroupSelection={session && profile && !profile.team_name}
         />
       )
     }
@@ -124,6 +137,13 @@ function App() {
         </p>
 
         <div className="quick-actions">
+          {session && profile && !profile.team_name && (
+            <div className="quick-action-card" onClick={() => setPage('profile')}>
+              <h3>Choose Your Group</h3>
+              <p>Select your group in My Profile before using the tracker.</p>
+            </div>
+          )}
+
           <div className="quick-action-card" onClick={() => setPage('daily')}>
             <h3>Daily Log</h3>
             <p>Record exercises, cardio sessions, and workout notes.</p>
@@ -169,76 +189,93 @@ function App() {
 
       {mobileMenuOpen && (
         <div className="mobile-menu-panel">
-          <button
-            onClick={() => {
-              setPage('home')
-              setMobileMenuOpen(false)
-            }}
-            className={page === 'home' ? 'nav-button nav-button-active' : 'nav-button'}
-          >
-            Home
-          </button>
+          {session && profile && !profile.team_name ? (
+            <>
+              <p className="form-helper-text">Choose your group in My Profile before using the tracker.</p>
+              <button
+                onClick={() => {
+                  setPage('profile')
+                  setMobileMenuOpen(false)
+                }}
+                className={page === 'profile' ? 'nav-button nav-button-active' : 'nav-button'}
+              >
+                My Profile
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => {
+                  setPage('home')
+                  setMobileMenuOpen(false)
+                }}
+                className={page === 'home' ? 'nav-button nav-button-active' : 'nav-button'}
+              >
+                Home
+              </button>
 
-          <button
-            onClick={() => {
-              setPage('daily')
-              setMobileMenuOpen(false)
-            }}
-            className={page === 'daily' ? 'nav-button nav-button-active' : 'nav-button'}
-          >
-            Daily Log
-          </button>
+              <button
+                onClick={() => {
+                  setPage('daily')
+                  setMobileMenuOpen(false)
+                }}
+                className={page === 'daily' ? 'nav-button nav-button-active' : 'nav-button'}
+              >
+                Daily Log
+              </button>
 
-          <button
-            onClick={() => {
-              setPage('weekly')
-              setMobileMenuOpen(false)
-            }}
-            className={page === 'weekly' ? 'nav-button nav-button-active' : 'nav-button'}
-          >
-            Weekly Log
-          </button>
+              <button
+                onClick={() => {
+                  setPage('weekly')
+                  setMobileMenuOpen(false)
+                }}
+                className={page === 'weekly' ? 'nav-button nav-button-active' : 'nav-button'}
+              >
+                Weekly Log
+              </button>
 
-          <button
-            onClick={() => {
-              setPage('monthly')
-              setMobileMenuOpen(false)
-            }}
-            className={page === 'monthly' ? 'nav-button nav-button-active' : 'nav-button'}
-          >
-            Monthly Progress
-          </button>
+              <button
+                onClick={() => {
+                  setPage('monthly')
+                  setMobileMenuOpen(false)
+                }}
+                className={page === 'monthly' ? 'nav-button nav-button-active' : 'nav-button'}
+              >
+                Monthly Progress
+              </button>
 
-          <button
-            onClick={() => {
-              setPage('history')
-              setMobileMenuOpen(false)
-            }}
-            className={page === 'history' ? 'nav-button nav-button-active' : 'nav-button'}
-          >
-            History
-          </button>
+              <button
+                onClick={() => {
+                  setPage('history')
+                  setMobileMenuOpen(false)
+                }}
+                className={page === 'history' ? 'nav-button nav-button-active' : 'nav-button'}
+              >
+                History
+              </button>
 
-          <button
-            onClick={() => {
-              setPage('profile')
-              setMobileMenuOpen(false)
-            }}
-            className={page === 'profile' ? 'nav-button nav-button-active' : 'nav-button'}
-          >
-            My Profile
-          </button>
+              <button
+                onClick={() => {
+                  setPage('profile')
+                  setMobileMenuOpen(false)
+                }}
+                className={page === 'profile' ? 'nav-button nav-button-active' : 'nav-button'}
+              >
+                My Profile
+              </button>
 
-          {profile?.role === 'admin' && (
-            <button
-              onClick={() => {
-                setPage('team')
-                setMobileMenuOpen(false)
-              }}
-              className={page === 'team' ? 'nav-button nav-button-active' : 'nav-button'}
-            >
-              Team Dashboard
-            </button>
+              {profile?.role === 'admin' && (
+                <button
+                  onClick={() => {
+                    setPage('team')
+                    setMobileMenuOpen(false)
+                  }}
+                  className={page === 'team' ? 'nav-button nav-button-active' : 'nav-button'}
+                >
+                  Team Dashboard
+                </button>
+              )}
+            </>
           )}
 
           <select
@@ -267,55 +304,66 @@ function App() {
       )}
 
       <div className="top-nav desktop-nav">
-        <button
-          onClick={() => setPage('home')}
-          className={page === 'home' ? 'nav-button nav-button-active' : 'nav-button'}
-        >
-          Home
-        </button>
-
-        <button
-          onClick={() => setPage('daily')}
-          className={page === 'daily' ? 'nav-button nav-button-active' : 'nav-button'}
-        >
-          Daily Log
-        </button>
-
-        <button
-          onClick={() => setPage('weekly')}
-          className={page === 'weekly' ? 'nav-button nav-button-active' : 'nav-button'}
-        >
-          Weekly Log
-        </button>
-
-        <button
-          onClick={() => setPage('monthly')}
-          className={page === 'monthly' ? 'nav-button nav-button-active' : 'nav-button'}
-        >
-          Monthly Progress
-        </button>
-
-        <button
-          onClick={() => setPage('history')}
-          className={page === 'history' ? 'nav-button nav-button-active' : 'nav-button'}
-        >
-          History
-        </button>
-
-        <button
-          onClick={() => setPage('profile')}
-          className={page === 'profile' ? 'nav-button nav-button-active' : 'nav-button'}
-        >
-          My Profile
-        </button>
-
-        {profile?.role === 'admin' && (
+        {session && profile && !profile.team_name ? (
           <button
-            onClick={() => setPage('team')}
-            className={page === 'team' ? 'nav-button nav-button-active' : 'nav-button'}
+            onClick={() => setPage('profile')}
+            className={page === 'profile' ? 'nav-button nav-button-active' : 'nav-button'}
           >
-            Team Dashboard
+            My Profile
           </button>
+        ) : (
+          <>
+            <button
+              onClick={() => setPage('home')}
+              className={page === 'home' ? 'nav-button nav-button-active' : 'nav-button'}
+            >
+              Home
+            </button>
+
+            <button
+              onClick={() => setPage('daily')}
+              className={page === 'daily' ? 'nav-button nav-button-active' : 'nav-button'}
+            >
+              Daily Log
+            </button>
+
+            <button
+              onClick={() => setPage('weekly')}
+              className={page === 'weekly' ? 'nav-button nav-button-active' : 'nav-button'}
+            >
+              Weekly Log
+            </button>
+
+            <button
+              onClick={() => setPage('monthly')}
+              className={page === 'monthly' ? 'nav-button nav-button-active' : 'nav-button'}
+            >
+              Monthly Progress
+            </button>
+
+            <button
+              onClick={() => setPage('history')}
+              className={page === 'history' ? 'nav-button nav-button-active' : 'nav-button'}
+            >
+              History
+            </button>
+
+            <button
+              onClick={() => setPage('profile')}
+              className={page === 'profile' ? 'nav-button nav-button-active' : 'nav-button'}
+            >
+              My Profile
+            </button>
+
+            {profile?.role === 'admin' && (
+              <button
+                onClick={() => setPage('team')}
+                className={page === 'team' ? 'nav-button nav-button-active' : 'nav-button'}
+              >
+                Team Dashboard
+              </button>
+            )}
+          </>
         )}
 
         <button
@@ -341,8 +389,8 @@ function App() {
           <option value="dark">Dark</option>
         </select>
       </div>
-            <main className="app-main">{renderPage()}</main>
 
+      <main className="main-content">{renderPage()}</main>
     </div>
   )
 }

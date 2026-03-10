@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-function Profile({ profile, onProfileUpdate }) {
+function Profile({ profile, onProfileUpdate, requireGroupSelection = false }) {
     const [dailyLogs, setDailyLogs] = useState([])
     const [weeklyLogs, setWeeklyLogs] = useState([])
     const [monthlyLogs, setMonthlyLogs] = useState([])
     const [loading, setLoading] = useState(true)
     const [fullName, setFullName] = useState('')
-    const [teamName, setTeamName] = useState('')    
+    const [teamName, setTeamName] = useState('')
     const [savingProfile, setSavingProfile] = useState(false)
     const [statusMessage, setStatusMessage] = useState('')
 
@@ -84,6 +84,12 @@ function Profile({ profile, onProfileUpdate }) {
         setSavingProfile(true)
         setStatusMessage('')
 
+        if (!teamName) {
+            setStatusMessage('Select your group before continuing.')
+            setSavingProfile(false)
+            return
+        }
+
         if (!profile?.id) {
             setStatusMessage('No profile found for this account.')
             setSavingProfile(false)
@@ -110,7 +116,7 @@ function Profile({ profile, onProfileUpdate }) {
             onProfileUpdate({
                 ...profile,
                 full_name: fullName,
-                team_name: teamName 
+                team_name: teamName
             })
         }
         setSavingProfile(false)
@@ -197,6 +203,11 @@ function Profile({ profile, onProfileUpdate }) {
     return (
         <div className="page-container">
             <h2>My Profile</h2>
+
+            {requireGroupSelection && (
+                <p className="form-helper-text">Choose your group to finish setting up your account.</p>
+            )}
+
             <p className="form-helper-text">
                 View your profile details, latest activity, and progress summary.
             </p>
@@ -229,10 +240,15 @@ function Profile({ profile, onProfileUpdate }) {
                         className="form-input"
                         value={teamName}
                         onChange={(e) => setTeamName(e.target.value)}
+                        required
                     >
                         <option value="">Select a group</option>
                         <option value="452 AMW/CP">452 AMW/CP</option>
                     </select>
+
+                    {requireGroupSelection && !teamName && (
+                        <p className="form-helper-text">Select a group to continue using the tracker.</p>
+                    )}
 
                     <button className="form-button" type="submit" disabled={savingProfile}>
                         {savingProfile ? 'Saving...' : 'Save Profile'}
