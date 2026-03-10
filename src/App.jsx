@@ -145,6 +145,19 @@ console.log('SETTING PROFILE:', {
     return <Auth />
   }
 
+  if (session && !authLoading && !profile) {
+  return (
+    <div className="page-container">
+      <div className="form-card">
+        <h2>Profile Load Error</h2>
+        <p className="form-helper-text">
+          Your session loaded, but your profile could not be retrieved from Supabase.
+        </p>
+      </div>
+    </div>
+  )
+}
+
   const renderPage = () => {
     const needsGroupSelection = session && profile && !profile.team_name
 
