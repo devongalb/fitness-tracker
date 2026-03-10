@@ -40,11 +40,15 @@ const loadProfile = async (currentSession) => {
   const signedInEmail = currentSession.user.email.toLowerCase()
   const authUserId = currentSession.user.id
 
-  const { data: profileData, error: profileError } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', authUserId)
-    .maybeSingle()
+const { data: profileData, error: profileError } = await supabase
+  .from('profiles')
+  .select('*')
+  .eq('id', authUserId)
+  .maybeSingle()
+
+console.log('AUTH USER ID:', authUserId)
+console.log('PROFILE DATA:', profileData)
+console.log('PROFILE ERROR:', profileError)
 
   if (profileError) {
     console.error('Error loading profile:', profileError)
