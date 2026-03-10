@@ -4,8 +4,6 @@ import { supabase } from '../lib/supabase'
 function TeamDashboard({ profile }) {
     const [profiles, setProfiles] = useState([])
     const [dailyLogs, setDailyLogs] = useState([])
-    const [weeklyLogs, setWeeklyLogs] = useState([])
-    const [monthlyLogs, setMonthlyLogs] = useState([])
     const [profileEmails, setProfileEmails] = useState([])
     const [loading, setLoading] = useState(true)
     const [savingRoleId, setSavingRoleId] = useState(null)
@@ -21,27 +19,19 @@ function TeamDashboard({ profile }) {
         const [
             { data: profilesData, error: profilesError },
             { data: dailyData, error: dailyError },
-            { data: weeklyData, error: weeklyError },
-            { data: monthlyData, error: monthlyError },
             { data: profileEmailsData, error: profileEmailsError }
         ] = await Promise.all([
             supabase.from('profiles').select('*').order('created_at', { ascending: false }),
             supabase.from('daily_logs').select('*').order('created_at', { ascending: false }),
-            supabase.from('weekly_logs').select('*').order('created_at', { ascending: false }),
-            supabase.from('monthly_logs').select('*').order('created_at', { ascending: false }),
             supabase.from('profile_emails').select('*').order('created_at', { ascending: true })
         ])
 
         if (profilesError) console.error('Error loading profiles:', profilesError)
         if (dailyError) console.error('Error loading daily logs:', dailyError)
-        if (weeklyError) console.error('Error loading weekly logs:', weeklyError)
-        if (monthlyError) console.error('Error loading monthly logs:', monthlyError)
         if (profileEmailsError) console.error('Error loading profile emails:', profileEmailsError)
 
         setProfiles(profilesData || [])
         setDailyLogs(dailyData || [])
-        setWeeklyLogs(weeklyData || [])
-        setMonthlyLogs(monthlyData || [])
         setProfileEmails(profileEmailsData || [])
         setLoading(false)
     }
@@ -125,35 +115,36 @@ const groupMembers = useMemo(() => {
         const today = new Date()
         const todayKey = today.toLocaleDateString('en-CA')
 
-        const weekStart = new Date(today)
-        const dayOfWeek = weekStart.getDay()
-        const daysSinceMonday = (dayOfWeek + 6) % 7
-        weekStart.setDate(weekStart.getDate() - daysSinceMonday)
-        const weekStartKey = weekStart.toLocaleDateString('en-CA')
-
-        const currentMonthName = today.toLocaleString('en-US', { month: 'long' })
-
-const submittedDailyToday = new Set(
-    dailyLogs
-        .filter((log) => log.date === todayKey && groupMemberIds.has(log.profile_id || log.user_id))
-        .map((log) => log.profile_id || log.user_id)
-)
-
-        const submittedWeeklyThisWeek = new Set(
-            weeklyLogs
-                .filter((log) => log.week_start === weekStartKey && groupMemberIds.has(log.profile_id || log.user_id))
+        const submittedDailyToday = new Set(
+            dailyLogs
+                .filter((log) => log.date === todayKey && groupMemberIds.has(log.profile_id || log.user_id))
                 .map((log) => log.profile_id || log.user_id)
         )
 
-        const submittedMonthlyThisMonth = new Set(
-            monthlyLogs
-                .filter((log) => log.month === currentMonthName && groupMemberIds.has(log.profile_id || log.user_id))
-                .map((log) => log.profile_id || log.user_id)
+        const todaysLogs = dailyLogs.filter(
+            (log) => log.date === todayKey && groupMemberIds.has(log.profile_id || log.user_id)
         )
+
+        const restDaysToday = todaysLogs.filter(
+            (log) => (log.workout_focus || '').trim().toLowerCase() === 'rest day'
+        ).length
+
+        const cardioSessionsToday = todaysLogs.filter(
+            (log) => Number(log.cardio_duration || 0) > 0
+        ).length
+
+        const totalCardioMinutesToday = todaysLogs.reduce(
+            (total, log) => total + Number(log.cardio_duration || 0),
+            0
+        )
+
+        const totalVolumeLiftedToday = todaysLogs.reduce((total, log) => {
+            const exercise1Volume = Number(log.exercise1_weight || 0) * Number(log.exercise1_reps || 0)
+            const exercise2Volume = Number(log.exercise2_weight || 0) * Number(log.exercise2_reps || 0)
+            return total + exercise1Volume + exercise2Volume
+        }, 0)
 
         const missingDaily = groupMembers.filter((member) => !submittedDailyToday.has(member.id))
-        const missingWeekly = groupMembers.filter((member) => !submittedWeeklyThisWeek.has(member.id))
-        const missingMonthly = groupMembers.filter((member) => !submittedMonthlyThisMonth.has(member.id))
 
         const memberStatuses = groupMembers.map((member) => ({
             id: member.id,
@@ -163,9 +154,7 @@ const submittedDailyToday = new Set(
             aliases: profileEmails.filter(
                 (alias) => alias.profile_id === member.id && !alias.is_primary
             ),
-            dailySubmitted: submittedDailyToday.has(member.id),
-            weeklySubmitted: submittedWeeklyThisWeek.has(member.id),
-            monthlySubmitted: submittedMonthlyThisMonth.has(member.id)
+            dailySubmitted: submittedDailyToday.has(member.id)
         }))
 
         const recentActivity = [
@@ -176,22 +165,6 @@ const submittedDailyToday = new Set(
                     created_at: log.created_at,
                     user_id: log.profile_id || log.user_id,
                     summary: log.workout_focus || 'Daily workout'
-                })),
-            ...weeklyLogs
-                .filter((log) => groupMemberIds.has(log.profile_id || log.user_id))
-                .map((log) => ({
-                    type: 'Weekly',
-                    created_at: log.created_at,
-                    user_id: log.profile_id || log.user_id,
-                    summary: log.week_start ? `Week of ${log.week_start}` : 'Weekly log'
-                })),
-            ...monthlyLogs
-                .filter((log) => groupMemberIds.has(log.profile_id || log.user_id))
-                .map((log) => ({
-                    type: 'Monthly',
-                    created_at: log.created_at,
-                    user_id: log.profile_id || log.user_id,
-                    summary: log.month || 'Monthly progress'
                 }))
         ]
             .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
@@ -200,15 +173,15 @@ const submittedDailyToday = new Set(
         return {
             totalMembers,
             dailySubmissionCount: submittedDailyToday.size,
-            weeklySubmissionCount: submittedWeeklyThisWeek.size,
-            monthlySubmissionCount: submittedMonthlyThisMonth.size,
+            restDaysToday,
+            cardioSessionsToday,
+            totalCardioMinutesToday,
+            totalVolumeLiftedToday,
             missingDaily,
-            missingWeekly,
-            missingMonthly,
             memberStatuses,
             recentActivity
         }
-    }, [groupMembers, dailyLogs, weeklyLogs, monthlyLogs, profileEmails])
+    }, [groupMembers, dailyLogs, profileEmails])
 
     const memberNameById = (userId) => {
         const member = profiles.find((p) => p.id === userId)
@@ -257,13 +230,44 @@ const submittedDailyToday = new Set(
                 </div>
 
                 <div className="quick-action-card">
-                    <h3>Weekly Submissions</h3>
-                    <p className="stat-value">{stats.weeklySubmissionCount}</p>
+                    <h3>Rest Days Today</h3>
+                    <p className="stat-value">{stats.restDaysToday}</p>
                 </div>
 
                 <div className="quick-action-card">
-                    <h3>Monthly Submissions</h3>
-                    <p className="stat-value">{stats.monthlySubmissionCount}</p>
+                    <h3>Cardio Minutes Today</h3>
+                    <p className="stat-value">{stats.totalCardioMinutesToday}</p>
+                </div>
+
+                <div className="quick-action-card">
+                    <h3>Volume Lifted Today</h3>
+                    <p className="stat-value">{stats.totalVolumeLiftedToday}</p>
+                </div>
+            </div>
+
+            <div className="history-section">
+                <h3 className="history-title">Team Progress Snapshot</h3>
+                <p className="history-section-subtitle">
+                    A daily snapshot of team training activity based on today's logs.
+                </p>
+
+                <div className="history-card">
+                    <div className="history-grid">
+                        <div>
+                            <p><strong>Members Logged Today:</strong> {stats.dailySubmissionCount}</p>
+                            <p><strong>Rest Days Today:</strong> {stats.restDaysToday}</p>
+                        </div>
+
+                        <div>
+                            <p><strong>Cardio Sessions Today:</strong> {stats.cardioSessionsToday}</p>
+                            <p><strong>Total Cardio Minutes:</strong> {stats.totalCardioMinutesToday}</p>
+                        </div>
+
+                        <div>
+                            <p><strong>Total Volume Lifted:</strong> {stats.totalVolumeLiftedToday} lbs</p>
+                            <p><strong>Members Missing Daily Log:</strong> {stats.missingDaily.length}</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -326,7 +330,7 @@ const submittedDailyToday = new Set(
             <div className="history-section">
                 <h3 className="history-title">Submission Status</h3>
                 <p className="history-section-subtitle">
-                    Quickly review which members in your group have submitted their daily, weekly, and monthly logs for the current period.
+                    Quickly review which members in your group have submitted their daily logs for the current day.
                 </p>
 
                 {stats.memberStatuses.length === 0 ? (
@@ -345,8 +349,6 @@ const submittedDailyToday = new Set(
                             <div className="history-grid">
                                 <div>
                                     <p className="history-field"><strong>Daily:</strong> {member.dailySubmitted ? '✓ Submitted' : '✗ Missing'}</p>
-                                    <p className="history-field"><strong>Weekly:</strong> {member.weeklySubmitted ? '✓ Submitted' : '✗ Missing'}</p>
-                                    <p className="history-field"><strong>Monthly:</strong> {member.monthlySubmitted ? '✓ Submitted' : '✗ Missing'}</p>
                                 </div>
 
                                 <div>
@@ -384,9 +386,8 @@ const submittedDailyToday = new Set(
             <div className="history-section">
                 <h3 className="history-title">Members Missing Logs</h3>
                 <p className="history-section-subtitle">
-                    Shows members in your group who have not submitted a daily log today, a weekly log for the current week, or a monthly log for the current month.
+                    Shows members in your group who have not submitted a daily log today.
                 </p>
-
                 <div className="history-card">
                     <div className="history-grid">
                         <div>
@@ -396,28 +397,6 @@ const submittedDailyToday = new Set(
                             ) : (
                                 stats.missingDaily.map((member) => (
                                     <p key={`daily-${member.id}`}>{member.full_name || member.email}</p>
-                                ))
-                            )}
-                        </div>
-
-                        <div>
-                            <p><strong>Missing Weekly This Week</strong></p>
-                            {stats.missingWeekly.length === 0 ? (
-                                <p>None</p>
-                            ) : (
-                                stats.missingWeekly.map((member) => (
-                                    <p key={`weekly-${member.id}`}>{member.full_name || member.email}</p>
-                                ))
-                            )}
-                        </div>
-
-                        <div>
-                            <p><strong>Missing Monthly This Month</strong></p>
-                            {stats.missingMonthly.length === 0 ? (
-                                <p>None</p>
-                            ) : (
-                                stats.missingMonthly.map((member) => (
-                                    <p key={`monthly-${member.id}`}>{member.full_name || member.email}</p>
                                 ))
                             )}
                         </div>

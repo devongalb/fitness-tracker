@@ -153,7 +153,7 @@ function App() {
         <div className="form-card">
           <h2>Profile Load Error</h2>
           <p className="form-helper-text">
-            Your session loaded, but your profile could not be retrieved from Supabase.
+            Your session loaded, but your profile could not be retrieved.
           </p>
         </div>
       </div>
@@ -196,7 +196,7 @@ function App() {
           Fitness Tracker{profile?.team_name ? `: ${profile.team_name}` : ''}
         </h1>
         <p>
-          Track daily workouts, weekly training, and monthly progress in one place.
+          Track daily workouts, weekly progress, and monthly trends in one place.
         </p>
 
         <div className="quick-actions">
@@ -283,7 +283,7 @@ function App() {
               onClick={() => setPage('weekly')}
               className={page === 'weekly' ? 'nav-button nav-button-active' : 'nav-button'}
             >
-              Weekly Log
+              Weekly Progress
             </button>
 
             <button

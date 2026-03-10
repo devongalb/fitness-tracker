@@ -53,7 +53,7 @@ function Profile({ profile, onProfileUpdate, requireGroupSelection = false }) {
                     .from('weekly_logs')
                     .select('*')
                     .eq('profile_id', profile.id)
-                    .order('created_at', { ascending: false })
+                    .order('week_start', { ascending: false })
                     .limit(3),
                 supabase
                     .from('monthly_logs')
@@ -302,18 +302,20 @@ function Profile({ profile, onProfileUpdate, requireGroupSelection = false }) {
                         <p>Loading profile summary...</p>
                     ) : (
                         <>
-                            <p><strong>Total Daily Logs:</strong> {dailyLogs.length}</p>
-                            <p><strong>Total Weekly Logs:</strong> {weeklyLogs.length}</p>
-                            <p><strong>Total Monthly Logs:</strong> {monthlyLogs.length}</p>
+                            <p><strong>Recent Workouts Logged:</strong> {dailyLogs.length}</p>
                             <p>
-                                <strong>Latest Submission:</strong>{' '}
+                                <strong>Last Workout:</strong>{' '}
+                                {latestDaily?.date || 'No workouts yet'}
+                            </p>
+                            <p>
+                                <strong>Latest Activity:</strong>{' '}
                                 {latestDaily?.created_at || latestWeekly?.created_at || latestMonthly?.created_at
                                     ? new Date(
                                         latestDaily?.created_at ||
                                         latestWeekly?.created_at ||
                                         latestMonthly?.created_at
                                     ).toLocaleString()
-                                    : 'No submissions yet'}
+                                    : 'No activity yet'}
                             </p>
                         </>
                     )}
@@ -328,40 +330,58 @@ function Profile({ profile, onProfileUpdate, requireGroupSelection = false }) {
                         dailyLogs.map((log) => (
                             <div key={log.id} className="history-card">
                                 <p><strong>Date:</strong> {log.date}</p>
-                                <p><strong>Focus:</strong> {log.workout_focus}</p>
-                                <p><strong>Cardio:</strong> {log.cardio_type} ({log.cardio_duration} min)</p>
+
+                                {log.workout_focus === 'Rest Day' ? (
+                                    <p><strong>Status:</strong> Rest Day</p>
+                                ) : (
+                                    <>
+                                        <p><strong>Focus:</strong> {log.workout_focus}</p>
+                                        <p><strong>Cardio:</strong> {log.cardio_type} ({log.cardio_duration} min)</p>
+                                    </>
+                                )}
                             </div>
                         ))
                     )}
                 </div>
 
                 <div className="form-section">
-                    <h3 className="form-section-title">Recent Weekly Logs</h3>
+                    <h3 className="form-section-title">Weekly Progress</h3>
+
+                    <p className="form-helper-text">
+                        Weekly progress is calculated automatically from your daily logs, then paired with your weekly body metrics and reflection.
+                    </p>
 
                     {weeklyLogs.length === 0 ? (
-                        <p>No weekly logs yet.</p>
+                        <p>No weekly progress saved yet.</p>
                     ) : (
                         weeklyLogs.map((log) => (
                             <div key={log.id} className="history-card">
-                                <p><strong>Week Starting:</strong> {log.week_start}</p>
-                                <p><strong>Monday:</strong> {log.monday || '—'}</p>
-                                <p><strong>Friday:</strong> {log.friday || '—'}</p>
+                                <p><strong>Week Starting:</strong> {log.week_start || '—'}</p>
+                                <p><strong>Workouts Completed:</strong> {log.workouts_completed ?? '—'}</p>
+                                <p><strong>Cardio Sessions:</strong> {log.cardio_sessions ?? '—'}</p>
+                                <p><strong>Weight:</strong> {log.weight ?? '—'}</p>
+                                <p><strong>Waist:</strong> {log.waist ?? '—'}</p>
+                                <p><strong>Recovery Rating:</strong> {log.recovery_rating ?? '—'}</p>
+                                <p><strong>Next Week Focus:</strong> {log.next_week_focus || '—'}</p>
                             </div>
                         ))
                     )}
                 </div>
 
                 <div className="form-section">
-                    <h3 className="form-section-title">Recent Monthly Logs</h3>
+                    <h3 className="form-section-title">Monthly Review</h3>
+
+                    <p className="form-helper-text">
+                        Monthly trends are calculated automatically from your daily logs. Your saved monthly entries are reflections and review notes.
+                    </p>
 
                     {monthlyLogs.length === 0 ? (
-                        <p>No monthly logs yet.</p>
+                        <p>No monthly review notes yet.</p>
                     ) : (
                         monthlyLogs.map((log) => (
                             <div key={log.id} className="history-card">
-                                <p><strong>Month:</strong> {log.month}</p>
-                                <p><strong>Weight:</strong> {log.weight ?? '—'}</p>
-                                <p><strong>Bench:</strong> {log.bench ?? '—'}</p>
+                                <p><strong>Month:</strong> {log.month || '—'}</p>
+                                <p><strong>Notes:</strong> {log.notes || '—'}</p>
                             </div>
                         ))
                     )}

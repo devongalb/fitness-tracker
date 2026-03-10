@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 
 function DailyLogForm({ profile }) {
     const [dailyForm, setDailyForm] = useState({
+        restDay: false,
         date: '',
         workoutFocus: '',
         exercise1: '',
@@ -17,11 +18,32 @@ function DailyLogForm({ profile }) {
     })
 
     const handleDailyChange = (e) => {
-        const { name, value } = e.target
-        setDailyForm((prev) => ({
-            ...prev,
-            [name]: value
-        }))
+        const { name, value, type, checked } = e.target
+        const nextValue = type === 'checkbox' ? checked : value
+
+        setDailyForm((prev) => {
+            if (name === 'restDay') {
+                return {
+                    ...prev,
+                    restDay: checked,
+                    workoutFocus: checked ? 'Rest Day' : prev.workoutFocus,
+                    exercise1: checked ? '' : prev.exercise1,
+                    exercise1Weight: checked ? '' : prev.exercise1Weight,
+                    exercise1Reps: checked ? '' : prev.exercise1Reps,
+                    exercise2: checked ? '' : prev.exercise2,
+                    exercise2Weight: checked ? '' : prev.exercise2Weight,
+                    exercise2Reps: checked ? '' : prev.exercise2Reps,
+                    cardioType: checked ? '' : prev.cardioType,
+                    cardioDuration: checked ? '' : prev.cardioDuration,
+                    notes: checked && !prev.notes ? 'Rest day.' : prev.notes
+                }
+            }
+
+            return {
+                ...prev,
+                [name]: nextValue
+            }
+        })
     }
 
     const handleSubmit = async (e) => {
@@ -36,15 +58,15 @@ function DailyLogForm({ profile }) {
             profile_id: profile.id,
             user_id: profile.id,
             date: dailyForm.date,
-            workout_focus: dailyForm.workoutFocus,
-            exercise1: dailyForm.exercise1,
-            exercise1_weight: Number(dailyForm.exercise1Weight),
-            exercise1_reps: Number(dailyForm.exercise1Reps),
-            exercise2: dailyForm.exercise2,
-            exercise2_weight: Number(dailyForm.exercise2Weight),
-            exercise2_reps: Number(dailyForm.exercise2Reps),
-            cardio_type: dailyForm.cardioType,
-            cardio_duration: Number(dailyForm.cardioDuration),
+            workout_focus: dailyForm.restDay ? 'Rest Day' : dailyForm.workoutFocus,
+            exercise1: dailyForm.restDay ? 'Rest Day' : dailyForm.exercise1,
+            exercise1_weight: dailyForm.restDay ? 0 : Number(dailyForm.exercise1Weight),
+            exercise1_reps: dailyForm.restDay ? 0 : Number(dailyForm.exercise1Reps),
+            exercise2: dailyForm.restDay ? 'Rest Day' : dailyForm.exercise2,
+            exercise2_weight: dailyForm.restDay ? 0 : Number(dailyForm.exercise2Weight),
+            exercise2_reps: dailyForm.restDay ? 0 : Number(dailyForm.exercise2Reps),
+            cardio_type: dailyForm.restDay ? 'Rest Day' : dailyForm.cardioType,
+            cardio_duration: dailyForm.restDay ? 0 : Number(dailyForm.cardioDuration),
             notes: dailyForm.notes
         }
 
@@ -59,6 +81,7 @@ function DailyLogForm({ profile }) {
         alert('Workout saved')
 
         setDailyForm({
+            restDay: false,
             date: '',
             workoutFocus: '',
             exercise1: '',
@@ -84,6 +107,17 @@ function DailyLogForm({ profile }) {
                 <div className="form-section">
                     <h3 className="form-section-title">Workout Information</h3>
 
+                    <label className="form-label">
+                        <input
+                            type="checkbox"
+                            name="restDay"
+                            checked={dailyForm.restDay}
+                            onChange={handleDailyChange}
+                            style={{ marginRight: '8px' }}
+                        />
+                        Rest Day
+                    </label>
+
                     <label className="form-label">Date</label>
                     <input
                         className="form-input"
@@ -102,7 +136,7 @@ function DailyLogForm({ profile }) {
                         value={dailyForm.workoutFocus}
                         onChange={handleDailyChange}
                         placeholder="Leg day, push, pull, etc."
-                        required
+                        required={!dailyForm.restDay}
                     />
                 </div>
 
@@ -117,7 +151,8 @@ function DailyLogForm({ profile }) {
                         value={dailyForm.exercise1}
                         onChange={handleDailyChange}
                         placeholder="Bench Press"
-                        required
+                        disabled={dailyForm.restDay}
+                        required={!dailyForm.restDay}
                     />
 
                     <label className="form-label">Weight</label>
@@ -129,7 +164,8 @@ function DailyLogForm({ profile }) {
                         value={dailyForm.exercise1Weight}
                         onChange={handleDailyChange}
                         placeholder="Weight used"
-                        required
+                        disabled={dailyForm.restDay}
+                        required={!dailyForm.restDay}
                     />
 
                     <label className="form-label">Reps</label>
@@ -141,7 +177,8 @@ function DailyLogForm({ profile }) {
                         value={dailyForm.exercise1Reps}
                         onChange={handleDailyChange}
                         placeholder="Number of reps"
-                        required
+                        disabled={dailyForm.restDay}
+                        required={!dailyForm.restDay}
                     />
                 </div>
 
@@ -156,7 +193,8 @@ function DailyLogForm({ profile }) {
                         value={dailyForm.exercise2}
                         onChange={handleDailyChange}
                         placeholder="Squats"
-                        required
+                        disabled={dailyForm.restDay}
+                        required={!dailyForm.restDay}
                     />
 
                     <label className="form-label">Weight</label>
@@ -168,7 +206,8 @@ function DailyLogForm({ profile }) {
                         value={dailyForm.exercise2Weight}
                         onChange={handleDailyChange}
                         placeholder="Weight used"
-                        required
+                        disabled={dailyForm.restDay}
+                        required={!dailyForm.restDay}
                     />
 
                     <label className="form-label">Reps</label>
@@ -180,7 +219,8 @@ function DailyLogForm({ profile }) {
                         value={dailyForm.exercise2Reps}
                         onChange={handleDailyChange}
                         placeholder="Number of reps"
-                        required
+                        disabled={dailyForm.restDay}
+                        required={!dailyForm.restDay}
                     />
                 </div>
 
@@ -195,7 +235,8 @@ function DailyLogForm({ profile }) {
                         value={dailyForm.cardioType}
                         onChange={handleDailyChange}
                         placeholder="Run, Bike, Row"
-                        required
+                        disabled={dailyForm.restDay}
+                        required={!dailyForm.restDay}
                     />
 
                     <label className="form-label">Cardio Duration (minutes)</label>
@@ -207,7 +248,8 @@ function DailyLogForm({ profile }) {
                         value={dailyForm.cardioDuration}
                         onChange={handleDailyChange}
                         placeholder="Duration in minutes"
-                        required
+                        disabled={dailyForm.restDay}
+                        required={!dailyForm.restDay}
                     />
                 </div>
 
