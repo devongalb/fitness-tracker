@@ -16,7 +16,7 @@ function App() {
   const [profile, setProfile] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  
+
   useEffect(() => {
     const root = document.documentElement
 
@@ -44,10 +44,33 @@ function App() {
         .from('profile_emails')
         .select('profile_id')
         .eq('email', signedInEmail)
-        .single()
+        .maybeSingle()
 
-      if (aliasError || !aliasRow) {
+      let profileId = aliasRow?.profile_id || null
+
+      if (aliasError) {
         console.error('Error loading profile alias:', aliasError)
+      }
+
+      if (!profileId && currentSession.user.id) {
+        const { data: fallbackProfile, error: fallbackProfileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentSession.user.id)
+          .maybeSingle()
+
+        if (fallbackProfileError) {
+          console.error('Error loading fallback profile:', fallbackProfileError)
+          setProfile(null)
+          return
+        }
+
+        if (fallbackProfile) {
+          profileId = fallbackProfile.id
+        }
+      }
+
+      if (!profileId) {
         setProfile(null)
         return
       }
@@ -55,7 +78,7 @@ function App() {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', aliasRow.profile_id)
+        .eq('id', profileId)
         .single()
 
       if (error) {
@@ -64,7 +87,35 @@ function App() {
         return
       }
 
-      setProfile(data)
+      if (data.email !== signedInEmail) {
+        const { error: updateProfileEmailError } = await supabase
+          .from('profiles')
+          .update({ email: signedInEmail })
+          .eq('id', profileId)
+
+        if (updateProfileEmailError) {
+          console.error('Error syncing profile email:', updateProfileEmailError)
+        }
+      }
+
+      if (!aliasRow) {
+        const { error: insertPrimaryAliasError } = await supabase
+          .from('profile_emails')
+          .insert({
+            profile_id: profileId,
+            email: signedInEmail,
+            is_primary: true
+          })
+
+        if (insertPrimaryAliasError) {
+          console.error('Error inserting primary alias:', insertPrimaryAliasError)
+        }
+      }
+
+      setProfile({
+        ...data,
+        email: signedInEmail
+      })
     }
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -98,7 +149,7 @@ function App() {
     return <Auth />
   }
 
-   const renderPage = () => {
+  const renderPage = () => {
     const needsGroupSelection = session && profile && !profile.team_name
 
     if (needsGroupSelection && page !== 'profile') {
