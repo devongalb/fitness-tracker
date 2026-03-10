@@ -227,22 +227,22 @@ function TeamDashboard({ profile }) {
             <div className="quick-actions">
                 <div className="quick-action-card">
                     <h3>Total Members</h3>
-                    <p>{stats.totalMembers}</p>
+                    <p className="stat-value">{stats.totalMembers}</p>
                 </div>
 
                 <div className="quick-action-card">
                     <h3>Daily Submissions</h3>
-                    <p>{dailyLogs.length}</p>
+                    <p className="stat-value">{dailyLogs.length}</p>
                 </div>
 
                 <div className="quick-action-card">
                     <h3>Weekly Submissions</h3>
-                    <p>{weeklyLogs.length}</p>
+                    <p className="stat-value">{weeklyLogs.length}</p>
                 </div>
 
                 <div className="quick-action-card">
                     <h3>Monthly Submissions</h3>
-                    <p>{monthlyLogs.length}</p>
+                    <p className="stat-value">{monthlyLogs.length}</p>
                 </div>
             </div>
 

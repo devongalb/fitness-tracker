@@ -126,9 +126,9 @@ body {
   background: var(--card-alt);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 18px;
-  min-width: 220px;
-  flex: 0 1 280px;
+  padding: 14px 16px;
+  min-width: 180px;
+  flex: 0 1 220px;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   box-sizing: border-box;
@@ -140,10 +140,12 @@ body {
   color: var(--text-main);
 }
 
-.quick-action-card p {
-  margin: 0;
-  color: var(--text-muted);
-  line-height: 1.4;
+.quick-action-card .stat-value {
+  margin-top: 6px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.1;
 }
 
 .quick-action-card:hover {
@@ -478,6 +480,7 @@ select.form-input {
   .quick-action-card {
     min-width: 0;
     width: 100%;
+    padding: 12px 14px;
   }
 
   .form-card {
@@ -549,21 +552,16 @@ select.form-input {
   }
 
   .quick-actions {
-    gap: 12px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
     margin-top: 18px;
   }
 
   .quick-action-card {
-    padding: 16px;
-  }
-
-  .quick-action-card:nth-child(odd) {
-    max-width: 100%;
-  }
-
-  .quick-action-card:nth-child(even) {
-    max-width: 92%;
-    margin-left: auto;
+    padding: 10px 12px;
+    min-width: 0;
+    width: 100%;
   }
 
   .form-card {
