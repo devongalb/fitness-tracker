@@ -341,62 +341,8 @@ function App() {
           <option value="dark">Dark</option>
         </select>
       </div>
+            <main className="app-main">{renderPage()}</main>
 
-      <main className="app-main">{renderPage()}</main>
-
-      <div className="mobile-bottom-nav">
-        <button
-          type="button"
-          className={page === 'home' ? 'bottom-nav-button bottom-nav-button-active' : 'bottom-nav-button'}
-          onClick={() => {
-            setPage('home')
-            setMobileMenuOpen(false)
-          }}
-        >
-          Home
-        </button>
-
-        <button
-          type="button"
-          className={page === 'daily' ? 'bottom-nav-button bottom-nav-button-active' : 'bottom-nav-button'}
-          onClick={() => {
-            setPage('daily')
-            setMobileMenuOpen(false)
-          }}
-        >
-          Daily
-        </button>
-
-        <button
-          type="button"
-          className={page === 'history' ? 'bottom-nav-button bottom-nav-button-active' : 'bottom-nav-button'}
-          onClick={() => {
-            setPage('history')
-            setMobileMenuOpen(false)
-          }}
-        >
-          History
-        </button>
-
-        <button
-          type="button"
-          className={page === 'profile' ? 'bottom-nav-button bottom-nav-button-active' : 'bottom-nav-button'}
-          onClick={() => {
-            setPage('profile')
-            setMobileMenuOpen(false)
-          }}
-        >
-          Profile
-        </button>
-
-        <button
-          type="button"
-          className={mobileMenuOpen ? 'bottom-nav-button bottom-nav-button-active' : 'bottom-nav-button'}
-          onClick={() => setMobileMenuOpen((prev) => !prev)}
-        >
-          Menu
-        </button>
-      </div>
     </div>
   )
 }
