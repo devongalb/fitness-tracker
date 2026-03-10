@@ -32,6 +32,7 @@ function App() {
 
   useEffect(() => {
 const loadProfile = async (currentSession) => {
+const loadProfile = async (currentSession) => {
   if (!currentSession?.user?.email || !currentSession?.user?.id) {
     setProfile(null)
     return
@@ -39,19 +40,27 @@ const loadProfile = async (currentSession) => {
 
   const signedInEmail = currentSession.user.email.toLowerCase()
   const authUserId = currentSession.user.id
-  console.log('SESSION USER:', currentSession.user)
-console.log('SIGNED IN EMAIL:', signedInEmail)
-console.log('AUTH USER ID:', authUserId)
 
-const { data: profileData, error: profileError } = await supabase
-  .from('profiles')
-  .select('*')
-  .eq('id', authUserId)
-  .maybeSingle()
+  // 1. First try to resolve this email through aliases
+  const { data: aliasRow, error: aliasError } = await supabase
+    .from('profile_emails')
+    .select('profile_id')
+    .eq('email', signedInEmail)
+    .maybeSingle()
 
-console.log('AUTH USER ID:', authUserId)
-console.log('PROFILE DATA:', profileData)
-console.log('PROFILE ERROR:', profileError)
+  if (aliasError) {
+    console.error('Error loading profile alias:', aliasError)
+  }
+
+  // 2. If alias exists, use that shared profile
+  //    Otherwise fall back to the auth user's own profile row
+  const resolvedProfileId = aliasRow?.profile_id || authUserId
+
+  const { data: profileData, error: profileError } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', resolvedProfileId)
+    .maybeSingle()
 
   if (profileError) {
     console.error('Error loading profile:', profileError)
@@ -60,59 +69,52 @@ console.log('PROFILE ERROR:', profileError)
   }
 
   if (!profileData) {
-    console.error('No profile row found for auth user.')
+    console.error('No profile row found for resolved profile id.')
     setProfile(null)
     return
   }
 
-  if (profileData.email !== signedInEmail) {
+  // 3. Keep the profile email in sync if needed
+  if (profileData.email !== signedInEmail && resolvedProfileId === authUserId) {
     const { error: updateProfileEmailError } = await supabase
       .from('profiles')
       .update({ email: signedInEmail })
-      .eq('id', authUserId)
+      .eq('id', resolvedProfileId)
 
     if (updateProfileEmailError) {
       console.error('Error syncing profile email:', updateProfileEmailError)
     }
   }
 
-  const { data: aliasRow, error: aliasError } = await supabase
-    .from('profile_emails')
-    .select('id')
-    .eq('email', signedInEmail)
-    .maybeSingle()
-
-  if (aliasError) {
-    console.error('Error loading profile alias:', aliasError)
-  }
-
+  // 4. If this email is not yet in profile_emails, add it to the resolved profile
   if (!aliasRow) {
-    const { error: insertPrimaryAliasError } = await supabase
+    const { error: insertAliasError } = await supabase
       .from('profile_emails')
       .upsert(
         {
-          profile_id: authUserId,
+          profile_id: resolvedProfileId,
           email: signedInEmail,
-          is_primary: true
+          is_primary: profileData.email?.toLowerCase() === signedInEmail
         },
         { onConflict: 'email' }
       )
 
-    if (insertPrimaryAliasError) {
-      console.error('Error inserting primary alias:', insertPrimaryAliasError)
+    if (insertAliasError) {
+      console.error('Error inserting alias email:', insertAliasError)
     }
   }
 
-console.log('SETTING PROFILE:', {
-  ...profileData,
-  email: signedInEmail
-})
-
+  // 5. Load the shared profile into app state
   setProfile({
     ...profileData,
     email: signedInEmail
   })
 }
+
+console.log('SETTING PROFILE:', {
+  ...profileData,
+  email: signedInEmail
+})
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session)
