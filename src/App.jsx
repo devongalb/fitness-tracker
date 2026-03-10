@@ -190,7 +190,9 @@ console.log('SETTING PROFILE:', {
 
     return (
       <div className="home-hero">
-        <h1>Fitness Tracker</h1>
+        <h1>
+          Fitness Tracker{profile?.team_name ? `: ${profile.team_name}` : ''}
+        </h1>
         <p>
           Track daily workouts, weekly training, and monthly progress in one place.
         </p>

@@ -163,6 +163,7 @@ body {
   flex-direction: column;
   gap: 18px;
   max-width: 720px;
+  margin: 0 auto;
   background: var(--card-bg);
   padding: 28px;
   border-radius: 12px;
@@ -276,7 +277,7 @@ select.form-input {
 .history-card-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 16px;
   margin-bottom: 14px;
 }
@@ -337,6 +338,13 @@ select.form-input {
 
 .delete-button:hover {
   background: rgba(220, 38, 38, 0.08);
+}
+
+.history-card-header > .form-button,
+.history-card-header > .delete-button {
+  margin-top: 0;
+  flex: 1 1 0;
+  min-height: 44px;
 }
 
 .nav-button-active {
@@ -601,8 +609,9 @@ select.form-input {
 
   .form-card {
     gap: 14px;
-    padding: 16px;
+    padding: 12px;
     margin: 0;
+    max-width: 100%;
   }
 
   .form-section {
@@ -630,7 +639,19 @@ select.form-input {
     font-size: 16px;
     width: 100%;
     max-width: 100%;
+    min-width: 0;
     box-sizing: border-box;
+  }
+
+  input[type='date'],
+  input[type='date'].form-input {
+    display: block;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    max-inline-size: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
   }
 
   .history-card-header {
