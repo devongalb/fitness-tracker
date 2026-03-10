@@ -48,6 +48,7 @@ function TeamDashboard({ profile }) {
 
     useEffect(() => {
         loadTeamData()
+        // eslint-disable-next-line
     }, [profile])
 
     const handleRoleSelection = (id, newRole) => {
@@ -106,8 +107,15 @@ function TeamDashboard({ profile }) {
         await loadTeamData()
     }
 
+    const groupMembers = useMemo(() => {
+        if (!profile?.team_name) return []
+
+        return profiles.filter((member) => member.team_name === profile.team_name)
+    }, [profiles, profile])
+
     const stats = useMemo(() => {
-        const totalMembers = profiles.length
+        const totalMembers = groupMembers.length
+        const groupMemberIds = new Set(groupMembers.map((member) => member.id))
 
         const today = new Date()
         const todayKey = today.toLocaleDateString('en-CA')
@@ -122,31 +130,30 @@ function TeamDashboard({ profile }) {
 
         const submittedDailyToday = new Set(
             dailyLogs
-                .filter((log) => log.date === todayKey)
+                .filter((log) => log.date === todayKey && groupMemberIds.has(log.user_id))
                 .map((log) => log.user_id)
         )
 
         const submittedWeeklyThisWeek = new Set(
             weeklyLogs
-                .filter((log) => log.week_start === weekStartKey)
+                .filter((log) => log.week_start === weekStartKey && groupMemberIds.has(log.user_id))
                 .map((log) => log.user_id)
         )
 
         const submittedMonthlyThisMonth = new Set(
             monthlyLogs
-                .filter((log) => log.month === currentMonthName)
+                .filter((log) => log.month === currentMonthName && groupMemberIds.has(log.user_id))
                 .map((log) => log.user_id)
         )
 
-        const missingDaily = profiles.filter((member) => !submittedDailyToday.has(member.id))
-        const missingWeekly = profiles.filter((member) => !submittedWeeklyThisWeek.has(member.id))
-        const missingMonthly = profiles.filter((member) => !submittedMonthlyThisMonth.has(member.id))
+        const missingDaily = groupMembers.filter((member) => !submittedDailyToday.has(member.id))
+        const missingWeekly = groupMembers.filter((member) => !submittedWeeklyThisWeek.has(member.id))
+        const missingMonthly = groupMembers.filter((member) => !submittedMonthlyThisMonth.has(member.id))
 
-        const memberStatuses = profiles.map((member) => ({
+        const memberStatuses = groupMembers.map((member) => ({
             id: member.id,
             name: member.full_name || member.email || 'Unknown member',
             email: member.email || '—',
-            teamName: member.team_name || 'Not set yet',
             role: member.role || 'member',
             aliases: profileEmails.filter(
                 (alias) => alias.profile_id === member.id && !alias.is_primary
@@ -157,37 +164,46 @@ function TeamDashboard({ profile }) {
         }))
 
         const recentActivity = [
-            ...dailyLogs.map((log) => ({
-                type: 'Daily',
-                created_at: log.created_at,
-                user_id: log.user_id,
-                summary: log.workout_focus || 'Daily workout'
-            })),
-            ...weeklyLogs.map((log) => ({
-                type: 'Weekly',
-                created_at: log.created_at,
-                user_id: log.user_id,
-                summary: log.week_start ? `Week of ${log.week_start}` : 'Weekly log'
-            })),
-            ...monthlyLogs.map((log) => ({
-                type: 'Monthly',
-                created_at: log.created_at,
-                user_id: log.user_id,
-                summary: log.month || 'Monthly progress'
-            }))
+            ...dailyLogs
+                .filter((log) => groupMemberIds.has(log.user_id))
+                .map((log) => ({
+                    type: 'Daily',
+                    created_at: log.created_at,
+                    user_id: log.user_id,
+                    summary: log.workout_focus || 'Daily workout'
+                })),
+            ...weeklyLogs
+                .filter((log) => groupMemberIds.has(log.user_id))
+                .map((log) => ({
+                    type: 'Weekly',
+                    created_at: log.created_at,
+                    user_id: log.user_id,
+                    summary: log.week_start ? `Week of ${log.week_start}` : 'Weekly log'
+                })),
+            ...monthlyLogs
+                .filter((log) => groupMemberIds.has(log.user_id))
+                .map((log) => ({
+                    type: 'Monthly',
+                    created_at: log.created_at,
+                    user_id: log.user_id,
+                    summary: log.month || 'Monthly progress'
+                }))
         ]
             .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
             .slice(0, 8)
 
         return {
             totalMembers,
+            dailySubmissionCount: submittedDailyToday.size,
+            weeklySubmissionCount: submittedWeeklyThisWeek.size,
+            monthlySubmissionCount: submittedMonthlyThisMonth.size,
             missingDaily,
             missingWeekly,
             missingMonthly,
             memberStatuses,
             recentActivity
         }
-    }, [profiles, dailyLogs, weeklyLogs, monthlyLogs, profileEmails])
+    }, [groupMembers, dailyLogs, weeklyLogs, monthlyLogs, profileEmails])
 
     const memberNameById = (userId) => {
         const member = profiles.find((p) => p.id === userId)
@@ -219,7 +235,7 @@ function TeamDashboard({ profile }) {
         <div className="page-container">
             <h2>Team Dashboard</h2>
             <p className="form-helper-text">
-                View team-wide activity, submissions, overall progress, and manage admin access.
+                View group activity, submissions, overall progress, and manage admin access.
             </p>
 
             {statusMessage && <p className="form-helper-text">{statusMessage}</p>}
@@ -232,40 +248,39 @@ function TeamDashboard({ profile }) {
 
                 <div className="quick-action-card">
                     <h3>Daily Submissions</h3>
-                    <p className="stat-value">{dailyLogs.length}</p>
+                    <p className="stat-value">{stats.dailySubmissionCount}</p>
                 </div>
 
                 <div className="quick-action-card">
                     <h3>Weekly Submissions</h3>
-                    <p className="stat-value">{weeklyLogs.length}</p>
+                    <p className="stat-value">{stats.weeklySubmissionCount}</p>
                 </div>
 
                 <div className="quick-action-card">
                     <h3>Monthly Submissions</h3>
-                    <p className="stat-value">{monthlyLogs.length}</p>
+                    <p className="stat-value">{stats.monthlySubmissionCount}</p>
                 </div>
             </div>
 
             <div className="history-section">
                 <h3 className="history-title">Role Management</h3>
                 <p className="history-section-subtitle">
-                    Promote or demote members directly inside the app.
+                    Edit roles for every member in your group.
                 </p>
 
-                {profiles.length === 0 ? (
-                    <p className="history-empty">No team members found.</p>
+                {groupMembers.length === 0 ? (
+                    <p className="history-empty">No members found in your group.</p>
                 ) : (
-                    profiles.map((member) => (
-                        <div key={member.id} className="history-card">
-                            <div className="history-card-header">
-                                <div>
-                                    <h4 className="history-card-title">{member.full_name || 'Unnamed member'}</h4>
-                                    <p className="history-card-meta"><strong>Email:</strong> {member.email || '—'}</p>
-                                    <p className="history-card-meta"><strong>Team:</strong> {member.team_name || '—'}</p>
+                    <div className="history-grid">
+                        {groupMembers.map((member) => (
+                            <div key={member.id} className="history-card">
+                                <div className="history-card-header">
+                                    <div>
+                                        <h4 className="history-card-title">{member.full_name || 'Unnamed member'}</h4>
+                                        <p className="history-card-meta"><strong>Email:</strong> {member.email || '—'}</p>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div className="history-grid">
                                 <div>
                                     <label className="form-label">Role</label>
                                     <select
@@ -277,41 +292,40 @@ function TeamDashboard({ profile }) {
                                         <option value="admin">Admin</option>
                                     </select>
                                 </div>
+
+                                <div className="history-card-header">
+                                    <button
+                                        type="button"
+                                        className="form-button"
+                                        onClick={() => handleSaveRole(member)}
+                                        disabled={savingRoleId === member.id || deletingMemberId === member.id}
+                                    >
+                                        {savingRoleId === member.id ? 'Saving...' : 'Save Role'}
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        className="delete-button"
+                                        onClick={() => handleDeleteMember(member)}
+                                        disabled={deletingMemberId === member.id || savingRoleId === member.id}
+                                    >
+                                        {deletingMemberId === member.id ? 'Deleting...' : 'Delete Member'}
+                                    </button>
+                                </div>
                             </div>
-
-                            <div className="history-card-header">
-                                <button
-                                    type="button"
-                                    className="form-button"
-                                    onClick={() => handleSaveRole(member)}
-                                    disabled={savingRoleId === member.id || deletingMemberId === member.id}
-                                >
-                                    {savingRoleId === member.id ? 'Saving...' : 'Save Role'}
-                                </button>
-
-                                <button
-                                    type="button"
-                                    className="delete-button"
-                                    onClick={() => handleDeleteMember(member)}
-                                    disabled={deletingMemberId === member.id || savingRoleId === member.id}
-                                >
-                                    {deletingMemberId === member.id ? 'Deleting...' : 'Delete Member'}
-                                </button>
-                            </div>
-
-                        </div>
-                    ))
+                        ))}
+                    </div>
                 )}
             </div>
 
             <div className="history-section">
                 <h3 className="history-title">Submission Status</h3>
                 <p className="history-section-subtitle">
-                    Quickly review which members have submitted their daily, weekly, and monthly logs for the current period.
+                    Quickly review which members in your group have submitted their daily, weekly, and monthly logs for the current period.
                 </p>
 
                 {stats.memberStatuses.length === 0 ? (
-                    <p className="history-empty">No team members found.</p>
+                    <p className="history-empty">No members found in your group.</p>
                 ) : (
                     stats.memberStatuses.map((member) => (
                         <div key={`status-${member.id}`} className="history-card">
@@ -319,7 +333,6 @@ function TeamDashboard({ profile }) {
                                 <div>
                                     <h4 className="history-card-title">{member.name}</h4>
                                     <p className="history-card-meta"><strong>Email:</strong> {member.email}</p>
-                                    <p className="history-card-meta"><strong>Group:</strong> {member.teamName}</p>
                                     <p className="history-card-meta"><strong>Role:</strong> {member.role}</p>
                                 </div>
                             </div>
@@ -366,7 +379,7 @@ function TeamDashboard({ profile }) {
             <div className="history-section">
                 <h3 className="history-title">Members Missing Logs</h3>
                 <p className="history-section-subtitle">
-                    Shows members who have not submitted a daily log today, a weekly log for the current week, or a monthly log for the current month.
+                    Shows members in your group who have not submitted a daily log today, a weekly log for the current week, or a monthly log for the current month.
                 </p>
 
                 <div className="history-card">

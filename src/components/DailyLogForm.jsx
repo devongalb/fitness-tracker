@@ -76,6 +76,9 @@ function DailyLogForm({ profile }) {
     return (
         <div className="page-container">
             <h2>Daily Workout Log</h2>
+            <p className="form-helper-text">
+                Record your daily workout details, cardio, and notes.
+            </p>
 
             <form onSubmit={handleSubmit} className="form-card">
                 <div className="form-section">

@@ -65,10 +65,13 @@ function WeeklyLogForm({ profile }) {
     }
 
     return (
-        <div className='page-container'>
+        <div className="page-container">
             <h2>Weekly Workout Log</h2>
+            <p className="form-helper-text">
+                Review and save your workouts completed throughout the week.
+            </p>
 
-            <form onSubmit={handleSubmit} className='form-card'>
+            <form onSubmit={handleSubmit} className="form-card">
                 <div className="form-section">
                     <h3 className="form-section-title">Week Overview</h3>
 
