@@ -328,7 +328,7 @@ function App() {
         </select>
       </div>
 
-      <main className="main-content">{renderPage()}</main>
+      <main className="app-main">{renderPage()}</main>
     </div>
   )
 }

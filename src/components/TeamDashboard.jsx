@@ -107,11 +107,16 @@ function TeamDashboard({ profile }) {
         await loadTeamData()
     }
 
-    const groupMembers = useMemo(() => {
-        if (!profile?.team_name) return []
+const groupMembers = useMemo(() => {
+    if (!profile?.team_name) return []
 
-        return profiles.filter((member) => member.team_name === profile.team_name)
-    }, [profiles, profile])
+    const adminGroup = profile.team_name.trim().toLowerCase()
+
+    return profiles.filter((member) => {
+        if (!member.team_name) return false
+        return member.team_name.trim().toLowerCase() === adminGroup
+    })
+}, [profiles, profile])
 
     const stats = useMemo(() => {
         const totalMembers = groupMembers.length
