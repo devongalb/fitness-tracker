@@ -144,6 +144,25 @@ function Profile({ profile, onProfileUpdate }) {
 
         setSavingAlias(true)
 
+        const { data: existingAlias, error: existingAliasError } = await supabase
+            .from('profile_emails')
+            .select('id, profile_id, email')
+            .eq('email', normalizedEmail)
+            .maybeSingle()
+
+        if (existingAliasError) {
+            console.error('Error checking existing alias:', existingAliasError)
+            setAliasMessage('Failed to validate alias email.')
+            setSavingAlias(false)
+            return
+        }
+
+        if (existingAlias && existingAlias.profile_id !== profile.id) {
+            setAliasMessage('That email is already being used by another profile.')
+            setSavingAlias(false)
+            return
+        }
+
         const { error } = await supabase
             .from('profile_emails')
             .insert({

@@ -6,9 +6,11 @@ function TeamDashboard({ profile }) {
     const [dailyLogs, setDailyLogs] = useState([])
     const [weeklyLogs, setWeeklyLogs] = useState([])
     const [monthlyLogs, setMonthlyLogs] = useState([])
+    const [profileEmails, setProfileEmails] = useState([])
     const [loading, setLoading] = useState(true)
     const [savingRoleId, setSavingRoleId] = useState(null)
     const [statusMessage, setStatusMessage] = useState('')
+    const [deletingMemberId, setDeletingMemberId] = useState(null)
 
     const loadTeamData = async () => {
         if (profile?.role !== 'admin') {
@@ -20,23 +22,27 @@ function TeamDashboard({ profile }) {
             { data: profilesData, error: profilesError },
             { data: dailyData, error: dailyError },
             { data: weeklyData, error: weeklyError },
-            { data: monthlyData, error: monthlyError }
+            { data: monthlyData, error: monthlyError },
+            { data: profileEmailsData, error: profileEmailsError }
         ] = await Promise.all([
             supabase.from('profiles').select('*').order('created_at', { ascending: false }),
             supabase.from('daily_logs').select('*').order('created_at', { ascending: false }),
             supabase.from('weekly_logs').select('*').order('created_at', { ascending: false }),
-            supabase.from('monthly_logs').select('*').order('created_at', { ascending: false })
+            supabase.from('monthly_logs').select('*').order('created_at', { ascending: false }),
+            supabase.from('profile_emails').select('*').order('created_at', { ascending: true })
         ])
 
         if (profilesError) console.error('Error loading profiles:', profilesError)
         if (dailyError) console.error('Error loading daily logs:', dailyError)
         if (weeklyError) console.error('Error loading weekly logs:', weeklyError)
         if (monthlyError) console.error('Error loading monthly logs:', monthlyError)
+        if (profileEmailsError) console.error('Error loading profile emails:', profileEmailsError)
 
         setProfiles(profilesData || [])
         setDailyLogs(dailyData || [])
         setWeeklyLogs(weeklyData || [])
         setMonthlyLogs(monthlyData || [])
+        setProfileEmails(profileEmailsData || [])
         setLoading(false)
     }
 
@@ -70,6 +76,33 @@ function TeamDashboard({ profile }) {
 
         setStatusMessage(`Updated role for ${member.full_name || member.email}.`)
         setSavingRoleId(null)
+        await loadTeamData()
+    }
+
+    const handleDeleteMember = async (member) => {
+        const confirmed = window.confirm(
+            `Delete ${member.full_name || member.email || 'this member'} from the app? This will remove their profile, aliases, and logs.`
+        )
+
+        if (!confirmed) return
+
+        setDeletingMemberId(member.id)
+        setStatusMessage('')
+
+        const { error } = await supabase
+            .from('profiles')
+            .delete()
+            .eq('id', member.id)
+
+        if (error) {
+            console.error('Error deleting member:', error)
+            setStatusMessage(`Failed to delete ${member.full_name || member.email}.`)
+            setDeletingMemberId(null)
+            return
+        }
+
+        setStatusMessage(`Deleted ${member.full_name || member.email} from the app.`)
+        setDeletingMemberId(null)
         await loadTeamData()
     }
 
@@ -112,6 +145,12 @@ function TeamDashboard({ profile }) {
         const memberStatuses = profiles.map((member) => ({
             id: member.id,
             name: member.full_name || member.email || 'Unknown member',
+            email: member.email || '—',
+            teamName: member.team_name || 'Not set yet',
+            role: member.role || 'member',
+            aliases: profileEmails.filter(
+                (alias) => alias.profile_id === member.id && !alias.is_primary
+            ),
             dailySubmitted: submittedDailyToday.has(member.id),
             weeklySubmitted: submittedWeeklyThisWeek.has(member.id),
             monthlySubmitted: submittedMonthlyThisMonth.has(member.id)
@@ -148,7 +187,7 @@ function TeamDashboard({ profile }) {
             memberStatuses,
             recentActivity
         }
-    }, [profiles, dailyLogs, weeklyLogs, monthlyLogs])
+    }, [profiles, dailyLogs, weeklyLogs, monthlyLogs, profileEmails])
 
     const memberNameById = (userId) => {
         const member = profiles.find((p) => p.id === userId)
@@ -240,14 +279,26 @@ function TeamDashboard({ profile }) {
                                 </div>
                             </div>
 
-                            <button
-                                type="button"
-                                className="form-button"
-                                onClick={() => handleSaveRole(member)}
-                                disabled={savingRoleId === member.id}
-                            >
-                                {savingRoleId === member.id ? 'Saving...' : 'Save Role'}
-                            </button>
+                            <div className="history-card-header">
+                                <button
+                                    type="button"
+                                    className="form-button"
+                                    onClick={() => handleSaveRole(member)}
+                                    disabled={savingRoleId === member.id || deletingMemberId === member.id}
+                                >
+                                    {savingRoleId === member.id ? 'Saving...' : 'Save Role'}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    className="delete-button"
+                                    onClick={() => handleDeleteMember(member)}
+                                    disabled={deletingMemberId === member.id || savingRoleId === member.id}
+                                >
+                                    {deletingMemberId === member.id ? 'Deleting...' : 'Delete Member'}
+                                </button>
+                            </div>
+
                         </div>
                     ))
                 )}
@@ -267,19 +318,29 @@ function TeamDashboard({ profile }) {
                             <div className="history-card-header">
                                 <div>
                                     <h4 className="history-card-title">{member.name}</h4>
+                                    <p className="history-card-meta"><strong>Email:</strong> {member.email}</p>
+                                    <p className="history-card-meta"><strong>Group:</strong> {member.teamName}</p>
+                                    <p className="history-card-meta"><strong>Role:</strong> {member.role}</p>
                                 </div>
                             </div>
 
                             <div className="history-grid">
-                                <p className="history-field">
-                                    <strong>Daily:</strong> {member.dailySubmitted ? '✓ Submitted' : '✗ Missing'}
-                                </p>
-                                <p className="history-field">
-                                    <strong>Weekly:</strong> {member.weeklySubmitted ? '✓ Submitted' : '✗ Missing'}
-                                </p>
-                                <p className="history-field">
-                                    <strong>Monthly:</strong> {member.monthlySubmitted ? '✓ Submitted' : '✗ Missing'}
-                                </p>
+                                <div>
+                                    <p className="history-field"><strong>Daily:</strong> {member.dailySubmitted ? '✓ Submitted' : '✗ Missing'}</p>
+                                    <p className="history-field"><strong>Weekly:</strong> {member.weeklySubmitted ? '✓ Submitted' : '✗ Missing'}</p>
+                                    <p className="history-field"><strong>Monthly:</strong> {member.monthlySubmitted ? '✓ Submitted' : '✗ Missing'}</p>
+                                </div>
+
+                                <div>
+                                    <p className="history-field"><strong>Alias Emails:</strong></p>
+                                    {member.aliases.length === 0 ? (
+                                        <p className="history-field">No aliases</p>
+                                    ) : (
+                                        member.aliases.map((alias) => (
+                                            <p key={alias.id} className="history-field">{alias.email}</p>
+                                        ))
+                                    )}
+                                </div>
                             </div>
                         </div>
                     ))
