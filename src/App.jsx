@@ -32,81 +32,76 @@ function App() {
 
   useEffect(() => {
 const loadProfile = async (currentSession) => {
-const loadProfile = async (currentSession) => {
-  try {
-    if (!currentSession?.user?.email || !currentSession?.user?.id) {
-      setProfile(null)
-      return
-    }
-
-    const signedInEmail = currentSession.user.email.toLowerCase()
-    const authUserId = currentSession.user.id
-
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', authUserId)
-      .maybeSingle()
-
-    if (profileError) {
-      console.error('Error loading profile:', profileError)
-      setProfile(null)
-      return
-    }
-
-    if (!profileData) {
-      console.error('No profile row found for auth user.')
-      setProfile(null)
-      return
-    }
-
-    if (profileData.email !== signedInEmail) {
-      const { error: updateProfileEmailError } = await supabase
-        .from('profiles')
-        .update({ email: signedInEmail })
-        .eq('id', authUserId)
-
-      if (updateProfileEmailError) {
-        console.error('Error syncing profile email:', updateProfileEmailError)
-      }
-    }
-
-    const { data: aliasRow, error: aliasError } = await supabase
-      .from('profile_emails')
-      .select('id')
-      .eq('email', signedInEmail)
-      .maybeSingle()
-
-    if (aliasError) {
-      console.error('Error loading profile alias:', aliasError)
-    }
-
-    if (!aliasRow) {
-      const { error: insertPrimaryAliasError } = await supabase
-        .from('profile_emails')
-        .upsert(
-          {
-            profile_id: authUserId,
-            email: signedInEmail,
-            is_primary: true
-          },
-          { onConflict: 'email' }
-        )
-
-      if (insertPrimaryAliasError) {
-        console.error('Error inserting primary alias:', insertPrimaryAliasError)
-      }
-    }
-
-    setProfile({
-      ...profileData,
-      email: signedInEmail
-    })
-  } catch (error) {
-    console.error('Unexpected loadProfile error:', error)
+  if (!currentSession?.user?.email || !currentSession?.user?.id) {
     setProfile(null)
+    return
   }
-}
+
+  const signedInEmail = currentSession.user.email.toLowerCase()
+  const authUserId = currentSession.user.id
+  console.log('SESSION USER:', currentSession.user)
+console.log('SIGNED IN EMAIL:', signedInEmail)
+console.log('AUTH USER ID:', authUserId)
+
+const { data: profileData, error: profileError } = await supabase
+  .from('profiles')
+  .select('*')
+  .eq('id', authUserId)
+  .maybeSingle()
+
+console.log('AUTH USER ID:', authUserId)
+console.log('PROFILE DATA:', profileData)
+console.log('PROFILE ERROR:', profileError)
+
+  if (profileError) {
+    console.error('Error loading profile:', profileError)
+    setProfile(null)
+    return
+  }
+
+  if (!profileData) {
+    console.error('No profile row found for auth user.')
+    setProfile(null)
+    return
+  }
+
+  if (profileData.email !== signedInEmail) {
+    const { error: updateProfileEmailError } = await supabase
+      .from('profiles')
+      .update({ email: signedInEmail })
+      .eq('id', authUserId)
+
+    if (updateProfileEmailError) {
+      console.error('Error syncing profile email:', updateProfileEmailError)
+    }
+  }
+
+  const { data: aliasRow, error: aliasError } = await supabase
+    .from('profile_emails')
+    .select('id')
+    .eq('email', signedInEmail)
+    .maybeSingle()
+
+  if (aliasError) {
+    console.error('Error loading profile alias:', aliasError)
+  }
+
+  if (!aliasRow) {
+    const { error: insertPrimaryAliasError } = await supabase
+      .from('profile_emails')
+      .upsert(
+        {
+          profile_id: authUserId,
+          email: signedInEmail,
+          is_primary: true
+        },
+        { onConflict: 'email' }
+      )
+
+    if (insertPrimaryAliasError) {
+      console.error('Error inserting primary alias:', insertPrimaryAliasError)
+    }
+  }
 
 console.log('SETTING PROFILE:', {
   ...profileData,
@@ -120,30 +115,18 @@ console.log('SETTING PROFILE:', {
 }
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-  try {
-    setSession(session)
-    await loadProfile(session)
-  } catch (error) {
-    console.error('Error during initial session load:', error)
-    setProfile(null)
-  } finally {
-    setAuthLoading(false)
-  }
-})
+      setSession(session)
+      await loadProfile(session)
+      setAuthLoading(false)
+    })
 
-const {
-  data: { subscription }
-} = supabase.auth.onAuthStateChange(async (_event, session) => {
-  try {
-    setSession(session)
-    await loadProfile(session)
-  } catch (error) {
-    console.error('Error during auth state change:', error)
-    setProfile(null)
-  } finally {
-    setAuthLoading(false)
-  }
-})
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session)
+      await loadProfile(session)
+      setAuthLoading(false)
+    })
 
     return () => subscription.unsubscribe()
   }, [])
