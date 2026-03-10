@@ -31,103 +31,103 @@ function App() {
   }, [theme])
 
   useEffect(() => {
-const loadProfile = async (currentSession) => {
-const loadProfile = async (currentSession) => {
-  if (!currentSession?.user?.email || !currentSession?.user?.id) {
-    setProfile(null)
-    return
-  }
+    const loadProfile = async (currentSession) => {
+      if (!currentSession?.user?.email || !currentSession?.user?.id) {
+        setProfile(null)
+        return
+      }
 
-  const signedInEmail = currentSession.user.email.toLowerCase()
-  const authUserId = currentSession.user.id
+      const signedInEmail = currentSession.user.email.toLowerCase()
+      const authUserId = currentSession.user.id
 
-  // 1. First try to resolve this email through aliases
-  const { data: aliasRow, error: aliasError } = await supabase
-    .from('profile_emails')
-    .select('profile_id')
-    .eq('email', signedInEmail)
-    .maybeSingle()
+      const { data: aliasRow, error: aliasError } = await supabase
+        .from('profile_emails')
+        .select('profile_id')
+        .eq('email', signedInEmail)
+        .maybeSingle()
 
-  if (aliasError) {
-    console.error('Error loading profile alias:', aliasError)
-  }
+      if (aliasError) {
+        console.error('Error loading profile alias:', aliasError)
+      }
 
-  // 2. If alias exists, use that shared profile
-  //    Otherwise fall back to the auth user's own profile row
-  const resolvedProfileId = aliasRow?.profile_id || authUserId
+      const resolvedProfileId = aliasRow?.profile_id || authUserId
 
-  const { data: profileData, error: profileError } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', resolvedProfileId)
-    .maybeSingle()
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', resolvedProfileId)
+        .maybeSingle()
 
-  if (profileError) {
-    console.error('Error loading profile:', profileError)
-    setProfile(null)
-    return
-  }
+      if (profileError) {
+        console.error('Error loading profile:', profileError)
+        setProfile(null)
+        return
+      }
 
-  if (!profileData) {
-    console.error('No profile row found for resolved profile id.')
-    setProfile(null)
-    return
-  }
+      if (!profileData) {
+        console.error('No profile row found for resolved profile id.')
+        setProfile(null)
+        return
+      }
 
-  // 3. Keep the profile email in sync if needed
-  if (profileData.email !== signedInEmail && resolvedProfileId === authUserId) {
-    const { error: updateProfileEmailError } = await supabase
-      .from('profiles')
-      .update({ email: signedInEmail })
-      .eq('id', resolvedProfileId)
+      if (profileData.email !== signedInEmail && resolvedProfileId === authUserId) {
+        const { error: updateProfileEmailError } = await supabase
+          .from('profiles')
+          .update({ email: signedInEmail })
+          .eq('id', resolvedProfileId)
 
-    if (updateProfileEmailError) {
-      console.error('Error syncing profile email:', updateProfileEmailError)
+        if (updateProfileEmailError) {
+          console.error('Error syncing profile email:', updateProfileEmailError)
+        }
+      }
+
+      if (!aliasRow) {
+        const { error: insertAliasError } = await supabase
+          .from('profile_emails')
+          .upsert(
+            {
+              profile_id: resolvedProfileId,
+              email: signedInEmail,
+              is_primary: profileData.email?.toLowerCase() === signedInEmail
+            },
+            { onConflict: 'email' }
+          )
+
+        if (insertAliasError) {
+          console.error('Error inserting alias email:', insertAliasError)
+        }
+      }
+
+      setProfile({
+        ...profileData,
+        email: signedInEmail
+      })
     }
-  }
-
-  // 4. If this email is not yet in profile_emails, add it to the resolved profile
-  if (!aliasRow) {
-    const { error: insertAliasError } = await supabase
-      .from('profile_emails')
-      .upsert(
-        {
-          profile_id: resolvedProfileId,
-          email: signedInEmail,
-          is_primary: profileData.email?.toLowerCase() === signedInEmail
-        },
-        { onConflict: 'email' }
-      )
-
-    if (insertAliasError) {
-      console.error('Error inserting alias email:', insertAliasError)
-    }
-  }
-
-  // 5. Load the shared profile into app state
-  setProfile({
-    ...profileData,
-    email: signedInEmail
-  })
-}
-
-console.log('SETTING PROFILE:', {
-  ...profileData,
-  email: signedInEmail
-})
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session)
-      await loadProfile(session)
-      setAuthLoading(false)
+      try {
+        setSession(session)
+        await loadProfile(session)
+      } catch (error) {
+        console.error('Error during initial session load:', error)
+        setProfile(null)
+      } finally {
+        setAuthLoading(false)
+      }
     })
 
     const {
       data: { subscription }
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session)
-      await loadProfile(session)
-      setAuthLoading(false)
+      try {
+        setSession(session)
+        await loadProfile(session)
+      } catch (error) {
+        console.error('Error during auth state change:', error)
+        setProfile(null)
+      } finally {
+        setAuthLoading(false)
+      }
     })
 
     return () => subscription.unsubscribe()
@@ -148,17 +148,17 @@ console.log('SETTING PROFILE:', {
   }
 
   if (session && !authLoading && !profile) {
-  return (
-    <div className="page-container">
-      <div className="form-card">
-        <h2>Profile Load Error</h2>
-        <p className="form-helper-text">
-          Your session loaded, but your profile could not be retrieved from Supabase.
-        </p>
+    return (
+      <div className="page-container">
+        <div className="form-card">
+          <h2>Profile Load Error</h2>
+          <p className="form-helper-text">
+            Your session loaded, but your profile could not be retrieved from Supabase.
+          </p>
+        </div>
       </div>
-    </div>
-  )
-}
+    )
+  }
 
   const renderPage = () => {
     const needsGroupSelection = session && profile && !profile.team_name
