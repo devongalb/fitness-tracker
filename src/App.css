@@ -536,11 +536,35 @@ select.form-input {
   .form-card,
   .form-section,
   .history-section,
-  .history-card {
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
-  }
+ .history-card {
+  text-align: left;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  padding: 20px 22px;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.form-section .history-card {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-left: 0;
+  margin-right: 0;
+  padding: 12px;
+}
+
+.form-section .history-card > div {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
 
   .top-nav {
     gap: 10px;
