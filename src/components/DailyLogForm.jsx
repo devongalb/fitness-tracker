@@ -302,99 +302,108 @@ function DailyLogForm({ profile }) {
                             ))}
                         </div>
                     )}
+                    {dailyForm.selectedWorkouts.length === 0 && (
+                        <p className="form-helper-text">
+                            Select and add a workout type to show the relevant workout entry sections.
+                        </p>
+                    )}
                 </div>
 
-                <div className="form-section">
-                    <h3 className="form-section-title">Exercises</h3>
+                {needsStrengthFields && (
+                    <div className="form-section">
+                        <h3 className="form-section-title">Exercises</h3>
 
-                    {dailyForm.exercises.map((exercise, index) => (
-                        <div key={exercise.id} className="history-card">
-                            <p><strong>Exercise {index + 1}</strong></p>
+                        {dailyForm.exercises.map((exercise, index) => (
+                            <div key={exercise.id} className="history-card">
+                                <p><strong>Exercise {index + 1}</strong></p>
 
-                            <label className="form-label">Exercise Name</label>
-                            <input
-                                className="form-input"
-                                type="text"
-                                value={exercise.name}
-                                onChange={(e) => handleExerciseChange(exercise.id, 'name', e.target.value)}
-                                placeholder="Bench Press"
-                                disabled={!needsStrengthFields}
-                                required={needsStrengthFields}
-                            />
+                                <label className="form-label">Exercise Name</label>
+                                <input
+                                    className="form-input"
+                                    type="text"
+                                    value={exercise.name}
+                                    onChange={(e) => handleExerciseChange(exercise.id, 'name', e.target.value)}
+                                    placeholder="Bench Press"
+                                    disabled={!needsStrengthFields}
+                                    required={needsStrengthFields}
+                                />
 
-                            <label className="form-label">Weight</label>
-                            <input
-                                className="form-input"
-                                type="number"
-                                min="0"
-                                value={exercise.weight}
-                                onChange={(e) => handleExerciseChange(exercise.id, 'weight', e.target.value)}
-                                placeholder="Weight used"
-                                disabled={!needsStrengthFields}
-                                required={needsStrengthFields}
-                            />
+                                <label className="form-label">Weight</label>
+                                <input
+                                    className="form-input"
+                                    type="number"
+                                    min="0"
+                                    value={exercise.weight}
+                                    onChange={(e) => handleExerciseChange(exercise.id, 'weight', e.target.value)}
+                                    placeholder="Weight used"
+                                    disabled={!needsStrengthFields}
+                                    required={needsStrengthFields}
+                                />
 
-                            <label className="form-label">Reps</label>
-                            <input
-                                className="form-input"
-                                type="number"
-                                min="0"
-                                value={exercise.reps}
-                                onChange={(e) => handleExerciseChange(exercise.id, 'reps', e.target.value)}
-                                placeholder="Number of reps"
-                                disabled={!needsStrengthFields}
-                                required={needsStrengthFields}
-                            />
+                                <label className="form-label">Reps</label>
+                                <input
+                                    className="form-input"
+                                    type="number"
+                                    min="0"
+                                    value={exercise.reps}
+                                    onChange={(e) => handleExerciseChange(exercise.id, 'reps', e.target.value)}
+                                    placeholder="Number of reps"
+                                    disabled={!needsStrengthFields}
+                                    required={needsStrengthFields}
+                                />
 
-                            <button
-                                type="button"
-                                className="delete-button"
-                                onClick={() => handleRemoveExercise(exercise.id)}
-                                disabled={!needsStrengthFields}
-                            >
-                                Remove Exercise
-                            </button>
-                        </div>
-                    ))}
+                                <button
+                                    type="button"
+                                    className="delete-button"
+                                    onClick={() => handleRemoveExercise(exercise.id)}
+                                    disabled={!needsStrengthFields}
+                                >
+                                    Remove Exercise
+                                </button>
+                            </div>
+                        ))}
 
-                    <button
-                        type="button"
-                        className="form-button"
-                        onClick={handleAddExercise}
-                        disabled={!needsStrengthFields}
-                    >
-                        Add Exercise
-                    </button>
-                </div>
+                        <button
+                            type="button"
+                            className="form-button"
+                            onClick={handleAddExercise}
+                            disabled={!needsStrengthFields}
+                        >
+                            Add Exercise
+                        </button>
+                    </div>
+                )}
 
-                <div className="form-section">
-                    <h3 className="form-section-title">Cardio</h3>
+                {needsCardioFields && (
+                    <div className="form-section">
+                        <h3 className="form-section-title">Cardio</h3>
 
-                    <label className="form-label">Cardio Type</label>
-                    <input
-                        className="form-input"
-                        type="text"
-                        name="cardioType"
-                        value={dailyForm.cardioType}
-                        onChange={handleDailyChange}
-                        placeholder="Run, Bike, Row"
-                        disabled={!needsCardioFields}
-                        required={needsCardioFields}
-                    />
+                        <label className="form-label">Cardio Type</label>
+                        <input
+                            className="form-input"
+                            type="text"
+                            name="cardioType"
+                            value={dailyForm.cardioType}
+                            onChange={handleDailyChange}
+                            placeholder="Run, Bike, Row"
+                            disabled={!needsCardioFields}
+                            required={needsCardioFields}
+                        />
 
-                    <label className="form-label">Cardio Duration (minutes)</label>
-                    <input
-                        className="form-input"
-                        type="number"
-                        min="0"
-                        name="cardioDuration"
-                        value={dailyForm.cardioDuration}
-                        onChange={handleDailyChange}
-                        placeholder="Duration in minutes"
-                        disabled={!needsCardioFields}
-                        required={needsCardioFields}
-                    />
-                </div>
+                        <label className="form-label">Cardio Duration (minutes)</label>
+                        <input
+                            className="form-input"
+                            type="number"
+                            min="0"
+                            name="cardioDuration"
+                            value={dailyForm.cardioDuration}
+                            onChange={handleDailyChange}
+                            placeholder="Duration in minutes"
+                            disabled={!needsCardioFields}
+                            required={needsCardioFields}
+                        />
+                    </div>
+                )}
 
                 <div className="form-section">
                     <h3 className="form-section-title">Notes</h3>

@@ -1,20 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-const strengthCategories = [
-    { key: 'bench', label: 'Bench', matches: ['bench', 'bench press', 'incline bench', 'dumbbell bench'] },
-    { key: 'squat', label: 'Squat', matches: ['squat', 'back squat', 'front squat', 'goblet squat'] },
-    { key: 'deadlift', label: 'Deadlift', matches: ['deadlift', 'romanian deadlift', 'rdl', 'trap bar deadlift'] }
-]
 
 function normalizeExerciseName(name) {
     return (name || '').trim().toLowerCase()
 }
 
-function matchesCategory(exerciseName, category) {
-    const normalized = normalizeExerciseName(exerciseName)
-    return category.matches.some((term) => normalized.includes(term))
-}
 
 function formatDateForInput(date) {
     return date.toLocaleDateString('en-CA')
@@ -149,40 +140,62 @@ function WeeklyLogForm({ profile }) {
     }, [selectedWeekLogs])
 
     const strengthTrends = useMemo(() => {
-        return strengthCategories.map((category) => {
-            const entries = selectedWeekLogs.flatMap((log) => {
-                const results = []
+        const exerciseMap = new Map()
 
-                if (matchesCategory(log.exercise1, category) && log.exercise1_weight != null) {
-                    results.push({
-                        exercise: log.exercise1,
-                        weight: Number(log.exercise1_weight),
-                        date: log.date
+        selectedWeekLogs.forEach((log) => {
+            const candidates = [
+                {
+                    name: log.exercise1,
+                    weight: log.exercise1_weight,
+                    reps: log.exercise1_reps,
+                    date: log.date
+                },
+                {
+                    name: log.exercise2,
+                    weight: log.exercise2_weight,
+                    reps: log.exercise2_reps,
+                    date: log.date
+                }
+            ]
+
+            candidates.forEach((entry) => {
+                const normalizedName = normalizeExerciseName(entry.name)
+                const numericWeight = Number(entry.weight || 0)
+                const numericReps = Number(entry.reps || 0)
+
+                if (
+                    !normalizedName ||
+                    normalizedName === 'n/a' ||
+                    normalizedName === 'rest day' ||
+                    numericWeight <= 0
+                ) {
+                    return
+                }
+
+                if (!exerciseMap.has(normalizedName)) {
+                    exerciseMap.set(normalizedName, {
+                        key: normalizedName,
+                        label: entry.name,
+                        entries: []
                     })
                 }
 
-                if (matchesCategory(log.exercise2, category) && log.exercise2_weight != null) {
-                    results.push({
-                        exercise: log.exercise2,
-                        weight: Number(log.exercise2_weight),
-                        date: log.date
-                    })
-                }
-
-                return results
+                exerciseMap.get(normalizedName).entries.push({
+                    exercise: entry.name,
+                    weight: numericWeight,
+                    reps: numericReps,
+                    date: entry.date
+                })
             })
-
-            const bestWeight = entries.length > 0
-                ? Math.max(...entries.map((entry) => entry.weight))
-                : null
-
-            return {
-                key: category.key,
-                label: category.label,
-                entries,
-                bestWeight
-            }
         })
+
+        return Array.from(exerciseMap.values())
+            .map((trend) => ({
+                ...trend,
+                bestWeight: Math.max(...trend.entries.map((entry) => entry.weight)),
+                totalSetsLogged: trend.entries.length
+            }))
+            .sort((a, b) => b.bestWeight - a.bestWeight)
     }, [selectedWeekLogs])
 
     const previousWeeklyLog = useMemo(() => {
@@ -304,15 +317,16 @@ function WeeklyLogForm({ profile }) {
 
                     {loadingSummary ? (
                         <p className="form-helper-text">Loading strength trends...</p>
+                    ) : strengthTrends.length === 0 ? (
+                        <p className="form-helper-text">
+                            No strength exercises were logged for this week.
+                        </p>
                     ) : (
                         strengthTrends.map((trend) => (
                             <div key={trend.key} className="history-card">
                                 <h4 className="history-card-title">{trend.label}</h4>
-                                {trend.bestWeight == null ? (
-                                    <p>No {trend.label.toLowerCase()} entries found this week.</p>
-                                ) : (
-                                    <p><strong>Best Logged Weight:</strong> {trend.bestWeight} lbs</p>
-                                )}
+                                <p><strong>Best Logged Weight:</strong> {trend.bestWeight} lbs</p>
+                                <p><strong>Entries Logged:</strong> {trend.totalSetsLogged}</p>
                             </div>
                         ))
                     )}

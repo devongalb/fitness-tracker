@@ -17,6 +17,19 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true)
 
   useEffect(() => {
+    let isMounted = true
+
+    const safeSetSession = (value) => {
+      if (isMounted) setSession(value)
+    }
+
+    const safeSetProfile = (value) => {
+      if (isMounted) setProfile(value)
+    }
+
+    const safeSetAuthLoading = (value) => {
+      if (isMounted) setAuthLoading(value)
+    }
     const root = document.documentElement
 
     if (theme === 'dark') {
@@ -31,9 +44,17 @@ function App() {
   }, [theme])
 
   useEffect(() => {
+    const withTimeout = (promise, ms = 5000) =>
+      Promise.race([
+        promise,
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Session bootstrap timed out.')), ms)
+        })
+      ])
+
     const loadProfile = async (currentSession) => {
       if (!currentSession?.user?.email || !currentSession?.user?.id) {
-        setProfile(null)
+        safeSetProfile(null)
         return
       }
 
@@ -60,13 +81,13 @@ function App() {
 
       if (profileError) {
         console.error('Error loading profile:', profileError)
-        setProfile(null)
+        safeSetProfile(null)
         return
       }
 
       if (!profileData) {
         console.error('No profile row found for resolved profile id.')
-        setProfile(null)
+        safeSetProfile(null)
         return
       }
 
@@ -98,39 +119,45 @@ function App() {
         }
       }
 
-      setProfile({
+      safeSetProfile({
         ...profileData,
         email: signedInEmail
       })
     }
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    const bootstrapSession = async () => {
       try {
-        setSession(session)
-        await loadProfile(session)
+        const { data: { session } } = await withTimeout(supabase.auth.getSession(), 5000)
+        safeSetSession(session)
+        await withTimeout(loadProfile(session), 5000)
       } catch (error) {
         console.error('Error during initial session load:', error)
-        setProfile(null)
+        safeSetProfile(null)
       } finally {
-        setAuthLoading(false)
+        safeSetAuthLoading(false)
       }
-    })
+    }
+
+    bootstrapSession()
 
     const {
       data: { subscription }
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       try {
-        setSession(session)
-        await loadProfile(session)
+        safeSetSession(session)
+        await withTimeout(loadProfile(session), 5000)
       } catch (error) {
         console.error('Error during auth state change:', error)
-        setProfile(null)
+        safeSetProfile(null)
       } finally {
-        setAuthLoading(false)
+        safeSetAuthLoading(false)
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      isMounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   if (authLoading) {
@@ -155,6 +182,17 @@ function App() {
           <p className="form-helper-text">
             Your session loaded, but your profile could not be retrieved.
           </p>
+          <button
+            type="button"
+            className="form-button"
+            style={{ maxWidth: '220px' }}
+            onClick={async () => {
+              await supabase.auth.signOut()
+              window.location.reload()
+            }}
+          >
+            Sign out and reload
+          </button>
         </div>
       </div>
     )
