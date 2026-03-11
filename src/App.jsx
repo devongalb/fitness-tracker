@@ -16,6 +16,20 @@ function App() {
   const [profile, setProfile] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
 
+useEffect(() => {
+  const root = document.documentElement
+
+  if (theme === 'dark') {
+    root.setAttribute('data-theme', 'dark')
+  } else if (theme === 'light') {
+    root.setAttribute('data-theme', 'light')
+  } else {
+    root.removeAttribute('data-theme')
+  }
+
+  localStorage.setItem('theme', theme)
+}, [theme])
+
   useEffect(() => {
     let isMounted = true
 
@@ -30,20 +44,6 @@ function App() {
     const safeSetAuthLoading = (value) => {
       if (isMounted) setAuthLoading(value)
     }
-    const root = document.documentElement
-
-    if (theme === 'dark') {
-      root.setAttribute('data-theme', 'dark')
-    } else if (theme === 'light') {
-      root.setAttribute('data-theme', 'light')
-    } else {
-      root.removeAttribute('data-theme')
-    }
-
-    localStorage.setItem('theme', theme)
-  }, [theme])
-
-  useEffect(() => {
     const withTimeout = (promise, ms = 5000) =>
       Promise.race([
         promise,
@@ -251,7 +251,7 @@ function App() {
           </div>
 
           <div className="quick-action-card" onClick={() => setPage('weekly')}>
-            <h3>Weekly Log</h3>
+            <h3>Weekly Progress</h3>
             <p>Track workouts completed throughout the week.</p>
           </div>
 
