@@ -16,19 +16,19 @@ function App() {
   const [profile, setProfile] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
 
-useEffect(() => {
-  const root = document.documentElement
+  useEffect(() => {
+    const root = document.documentElement
 
-  if (theme === 'dark') {
-    root.setAttribute('data-theme', 'dark')
-  } else if (theme === 'light') {
-    root.setAttribute('data-theme', 'light')
-  } else {
-    root.removeAttribute('data-theme')
-  }
+    if (theme === 'dark') {
+      root.setAttribute('data-theme', 'dark')
+    } else if (theme === 'light') {
+      root.setAttribute('data-theme', 'light')
+    } else {
+      root.removeAttribute('data-theme')
+    }
 
-  localStorage.setItem('theme', theme)
-}, [theme])
+    localStorage.setItem('theme', theme)
+  }, [theme])
 
   useEffect(() => {
     let isMounted = true
@@ -86,8 +86,52 @@ useEffect(() => {
       }
 
       if (!profileData) {
-        console.error('No profile row found for resolved profile id.')
-        safeSetProfile(null)
+        const { data: insertedProfile, error: insertProfileError } = await supabase
+          .from('profiles')
+          .upsert(
+            {
+              id: authUserId,
+              email: signedInEmail,
+              full_name: '',
+              team_name: null,
+              role: 'member'
+            },
+            { onConflict: 'id' }
+          )
+          .select()
+          .maybeSingle()
+
+        if (insertProfileError) {
+          console.error('Error creating missing profile row:', insertProfileError)
+          safeSetProfile(null)
+          return
+        }
+
+        if (!insertedProfile) {
+          console.error('Profile row was still not available after insert.')
+          safeSetProfile(null)
+          return
+        }
+
+        const { error: ensurePrimaryAliasError } = await supabase
+          .from('profile_emails')
+          .upsert(
+            {
+              profile_id: authUserId,
+              email: signedInEmail,
+              is_primary: true
+            },
+            { onConflict: 'email' }
+          )
+
+        if (ensurePrimaryAliasError) {
+          console.error('Error creating primary alias row:', ensurePrimaryAliasError)
+        }
+
+        safeSetProfile({
+          ...insertedProfile,
+          email: signedInEmail
+        })
         return
       }
 
