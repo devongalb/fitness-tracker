@@ -380,6 +380,14 @@ useEffect(() => {
       </div>
 
       <main className="app-main">{renderPage()}</main>
+      <footer className="app-footer">
+        <button
+          className="privacy-link"
+          onClick={() => window.open('/privacy/policy.html', '_blank')}
+        >
+          Privacy Policy
+        </button>
+      </footer>
     </div>
   )
 }
